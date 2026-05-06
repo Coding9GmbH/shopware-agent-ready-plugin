@@ -27,9 +27,13 @@ shop starts speaking the protocols agents already understand.
 | OAuth 2.0 discovery | [RFC 8414](https://www.rfc-editor.org/rfc/rfc8414) | `/.well-known/oauth-authorization-server` |
 | OpenID Connect discovery | [OIDC](https://openid.net/specs/openid-connect-discovery-1_0.html) | `/.well-known/openid-configuration` |
 | Protected resource metadata | [RFC 9728](https://www.rfc-editor.org/rfc/rfc9728) | `/.well-known/oauth-protected-resource` |
+| Dynamic Client Registration | [RFC 7591](https://www.rfc-editor.org/rfc/rfc7591) | `POST /api/oauth/register` (honest stub) |
 | MCP Server Card | [SEP-1649](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2127) | `/.well-known/mcp/server-card.json` |
+| **MCP server runtime** | [modelcontextprotocol.io](https://modelcontextprotocol.io/) | `POST /mcp` (JSON-RPC: `initialize`, `tools/list`, `tools/call`) |
 | A2A Agent Card | [a2a-protocol.org](https://a2a-protocol.org/latest/specification/) | `/.well-known/agent-card.json` |
+| **A2A server runtime** | [a2a-protocol.org](https://a2a-protocol.org/latest/specification/) | `POST /a2a` (JSON-RPC: `message/send`) |
 | Agent Skills index | [agent-skills-discovery-rfc](https://github.com/cloudflare/agent-skills-discovery-rfc) | `/.well-known/agent-skills/index.json` |
+| Agentic payments | [x402.org](https://www.x402.org/) | `/.well-known/x402` (demo) |
 | WebMCP | [webmachinelearning/webmcp](https://webmachinelearning.github.io/webmcp/) | `navigator.modelContext.provideContext()` |
 | llms.txt | [llmstxt.org](https://llmstxt.org/) | `/llms.txt`, `/llms-full.txt` |
 
@@ -165,6 +169,53 @@ Sitemap: /sitemap.xml
 - `agent-skills/index.json` — index pointing at `/SKILL.md` documents whose
   SHA-256 digests are computed at response time, so they always match
 
+### MCP server runtime (`POST /mcp`)
+
+The plugin hosts a real Model Context Protocol JSON-RPC 2.0 endpoint. It
+implements `initialize`, `tools/list` and `tools/call` for four tools whose
+input schemas come from `Coding9\AgentReady\Skill\SkillRegistry`:
+`search-products`, `get-product`, `manage-cart`, `place-order`.
+
+`tools/call` returns a structured **dispatch envelope** describing the
+Store API request the agent (or its host) should issue:
+
+```json
+{
+  "kind": "http-request",
+  "method": "POST",
+  "path": "/store-api/search",
+  "headers": {"sw-access-key": "<...>"},
+  "body": {"search": "shoes", "limit": 24}
+}
+```
+
+The plugin deliberately does **not** proxy Store API calls — Shopware
+already serves them, and keeping authorization and execution out of the
+MCP server keeps the surface small, auditable and decoupled from the
+Shopware container.
+
+### A2A server runtime (`POST /a2a`)
+
+JSON-RPC `message/send` re-uses the same `SkillRegistry`, so MCP and A2A
+clients see identical capabilities. The agent submits a `data` part with
+`{skill, arguments}`; the response is an `agent` Message whose part carries
+the dispatch envelope.
+
+### Dynamic Client Registration (`POST /api/oauth/register`)
+
+RFC 7591. Shopware doesn't yet support automated client registration;
+integrations are created in the admin. The endpoint returns a structured
+`501 not_supported` with a doc link, advertises itself via
+`registration_endpoint` in the OAuth metadata, and is the natural extension
+point once Shopware ships native DCR.
+
+### Agentic payments (`/.well-known/x402`)
+
+Returns an [x402](https://www.x402.org/)-shaped `402 payment_required`
+demo body. Wire a real facilitator (Coinbase x402, Stripe Agent Toolkit,
+Visa Intelligent Commerce) into `X402Controller` to settle agentic
+payments before delegating to `POST /store-api/handle-payment`.
+
 ### WebMCP
 
 The plugin extends `@Storefront/storefront/base.html.twig` and injects a
@@ -212,6 +263,23 @@ curl -s https://your-shop.example/.well-known/api-catalog | jq
 curl -s https://your-shop.example/.well-known/agent-card.json | jq
 curl -s https://your-shop.example/.well-known/mcp/server-card.json | jq
 curl -s https://your-shop.example/.well-known/agent-skills/index.json | jq
+
+# Hit the MCP server end-to-end:
+curl -s https://your-shop.example/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | jq
+
+curl -s https://your-shop.example/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search-products","arguments":{"query":"shoes"}}}' | jq
+
+# A2A:
+curl -s https://your-shop.example/a2a \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"message/send","params":{"message":{"parts":[{"kind":"data","data":{"skill":"search-products","arguments":{"query":"shoes"}}}]}}}' | jq
+
+# x402:
+curl -s -i https://your-shop.example/.well-known/x402
 ```
 
 Then submit your domain at <https://isitagentready.com> — every check should

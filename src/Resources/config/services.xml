@@ -17,6 +17,16 @@
             <argument type="service" id="Coding9\AgentReady\Service\ConfigReader"/>
         </service>
 
+        <service id="Coding9\AgentReady\Skill\SkillRegistry"/>
+
+        <service id="Coding9\AgentReady\Mcp\McpServer">
+            <argument type="service" id="Coding9\AgentReady\Skill\SkillRegistry"/>
+        </service>
+
+        <service id="Coding9\AgentReady\A2a\A2aServer">
+            <argument type="service" id="Coding9\AgentReady\Skill\SkillRegistry"/>
+        </service>
+
         <!-- Subscribers -->
         <service id="Coding9\AgentReady\Subscriber\LinkHeaderSubscriber">
             <argument type="service" id="Coding9\AgentReady\Service\AgentConfig"/>
@@ -31,6 +41,37 @@
 
         <!-- Controllers -->
         <service id="Coding9\AgentReady\Controller\WellKnownController" public="true">
+            <argument type="service" id="Coding9\AgentReady\Service\AgentConfig"/>
+            <argument type="service" id="Coding9\AgentReady\Skill\SkillRegistry"/>
+            <call method="setContainer">
+                <argument type="service" id="service_container"/>
+            </call>
+        </service>
+
+        <service id="Coding9\AgentReady\Controller\McpController" public="true">
+            <argument type="service" id="Coding9\AgentReady\Service\AgentConfig"/>
+            <argument type="service" id="Coding9\AgentReady\Mcp\McpServer"/>
+            <call method="setContainer">
+                <argument type="service" id="service_container"/>
+            </call>
+        </service>
+
+        <service id="Coding9\AgentReady\Controller\A2aController" public="true">
+            <argument type="service" id="Coding9\AgentReady\Service\AgentConfig"/>
+            <argument type="service" id="Coding9\AgentReady\A2a\A2aServer"/>
+            <call method="setContainer">
+                <argument type="service" id="service_container"/>
+            </call>
+        </service>
+
+        <service id="Coding9\AgentReady\Controller\DcrController" public="true">
+            <argument type="service" id="Coding9\AgentReady\Service\AgentConfig"/>
+            <call method="setContainer">
+                <argument type="service" id="service_container"/>
+            </call>
+        </service>
+
+        <service id="Coding9\AgentReady\Controller\X402Controller" public="true">
             <argument type="service" id="Coding9\AgentReady\Service\AgentConfig"/>
             <call method="setContainer">
                 <argument type="service" id="service_container"/>

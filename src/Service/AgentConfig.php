@@ -134,4 +134,24 @@ class AgentConfig
     {
         return $this->bool('enableWebMcp', true, $salesChannelId);
     }
+
+    public function isMcpServerEnabled(?string $salesChannelId = null): bool
+    {
+        return $this->bool('enableMcpServer', true, $salesChannelId);
+    }
+
+    public function isA2aServerEnabled(?string $salesChannelId = null): bool
+    {
+        return $this->bool('enableA2aServer', true, $salesChannelId);
+    }
+
+    public function isDcrEnabled(?string $salesChannelId = null): bool
+    {
+        return $this->bool('enableDcr', true, $salesChannelId);
+    }
+
+    public function isX402Enabled(?string $salesChannelId = null): bool
+    {
+        return $this->bool('enableX402', true, $salesChannelId);
+    }
 }

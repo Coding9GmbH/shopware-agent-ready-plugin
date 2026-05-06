@@ -3,6 +3,7 @@
 namespace Coding9\AgentReady\Controller;
 
 use Coding9\AgentReady\Service\AgentConfig;
+use Coding9\AgentReady\Skill\SkillRegistry;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -18,15 +19,10 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route(defaults: ['_routeScope' => ['storefront']])]
 class WellKnownController extends AbstractController
 {
-    /** Single source of truth for the canonical SKILL.md bodies. */
-    private const SKILL_BODIES = [
-        'search-products' => "# Search products\n\nUse the Store API endpoint `POST /store-api/search` to look up products by keyword. Required input: `search` string.\n",
-        'place-order'     => "# Place order\n\n1. Build a cart via `POST /store-api/checkout/cart`.\n2. Add items via `POST /store-api/checkout/cart/line-item`.\n3. Place the order via `POST /store-api/checkout/order`.\n",
-        'manage-cart'     => "# Manage cart\n\nUse `/store-api/checkout/cart/line-item` (POST/PATCH/DELETE) to add, update or remove line items in the current cart.\n",
-    ];
-
-    public function __construct(private readonly AgentConfig $config)
-    {
+    public function __construct(
+        private readonly AgentConfig $config,
+        private readonly SkillRegistry $skills,
+    ) {
     }
 
     #[Route(
@@ -111,6 +107,10 @@ class WellKnownController extends AbstractController
             'service_documentation' => 'https://developer.shopware.com/docs/guides/integrations-api/general-concepts/authentication.html',
         ];
 
+        if ($this->config->isDcrEnabled($this->salesChannelId($request))) {
+            $payload['registration_endpoint'] = $base . '/api/oauth/register';
+        }
+
         return $this->jsonWithType($payload, 'application/json');
     }
 
@@ -170,7 +170,7 @@ class WellKnownController extends AbstractController
 
         $payload = [
             'name' => $name,
-            'description' => 'Discovery card for the Shopware 6 storefront. The MCP transport itself is provided by a separate plugin or external bridge.',
+            'description' => 'Discovery card for the Shopware 6 storefront. The MCP server is hosted by this plugin at /mcp.',
             'version' => $version,
             'protocolVersion' => '2025-06-18',
             'endpoint' => $endpoint !== '' ? $endpoint : $base . '/mcp',
@@ -181,7 +181,9 @@ class WellKnownController extends AbstractController
                 'name' => $name,
                 'version' => $version,
             ],
-            'capabilities' => new \stdClass(),
+            'capabilities' => [
+                'tools' => new \stdClass(),
+            ],
         ];
 
         return $this->jsonWithType($payload, 'application/json');
@@ -213,7 +215,7 @@ class WellKnownController extends AbstractController
             'protocolVersion' => '0.3.0',
             'name' => $this->config->getA2aAgentName($sc),
             'description' => $this->config->getA2aAgentDescription($sc),
-            'url' => $base . '/store-api',
+            'url' => $base . '/a2a',
             'preferredTransport' => 'JSONRPC',
             'version' => '1.0.0',
             'defaultInputModes' => ['text/plain', 'application/json'],
@@ -223,32 +225,7 @@ class WellKnownController extends AbstractController
                 'pushNotifications' => false,
                 'stateTransitionHistory' => false,
             ],
-            'skills' => [
-                [
-                    'id' => 'search-products',
-                    'name' => 'Search products',
-                    'description' => 'Search the product catalog by keyword.',
-                    'tags' => ['search', 'catalog', 'products'],
-                ],
-                [
-                    'id' => 'get-product',
-                    'name' => 'Get product detail',
-                    'description' => 'Retrieve detailed information for a single product by id or seo url.',
-                    'tags' => ['catalog', 'products'],
-                ],
-                [
-                    'id' => 'add-to-cart',
-                    'name' => 'Add product to cart',
-                    'description' => 'Add a product line item to the current shopping cart.',
-                    'tags' => ['cart', 'checkout'],
-                ],
-                [
-                    'id' => 'place-order',
-                    'name' => 'Place order',
-                    'description' => 'Place an order for the items in the current cart.',
-                    'tags' => ['checkout', 'orders'],
-                ],
-            ],
+            'skills' => $this->skills->asA2aSkillList(),
         ];
 
         return $this->jsonWithType($payload, 'application/json');
@@ -268,26 +245,16 @@ class WellKnownController extends AbstractController
 
         $base = $this->absoluteBase($request);
 
-        $skills = [
-            $this->skillEntry(
-                'search-products',
-                'task',
-                'Search the product catalog of the Shopware storefront.',
-                $base . '/.well-known/agent-skills/search-products/SKILL.md'
-            ),
-            $this->skillEntry(
-                'place-order',
-                'task',
-                'Place an order with items from the current cart.',
-                $base . '/.well-known/agent-skills/place-order/SKILL.md'
-            ),
-            $this->skillEntry(
-                'manage-cart',
-                'task',
-                'Add, update or remove items in the shopping cart.',
-                $base . '/.well-known/agent-skills/manage-cart/SKILL.md'
-            ),
-        ];
+        $skills = [];
+        foreach ($this->skills->all() as $skill) {
+            $skills[] = [
+                'name' => $skill->id,
+                'type' => 'task',
+                'description' => $skill->description,
+                'url' => $base . '/.well-known/agent-skills/' . $skill->id . '/SKILL.md',
+                'sha256' => hash('sha256', $skill->body),
+            ];
+        }
 
         $payload = [
             '$schema' => 'https://agentskills.io/schemas/index/v0.2.0.json',
@@ -310,28 +277,15 @@ class WellKnownController extends AbstractController
             return $this->disabled();
         }
 
-        if (!array_key_exists($slug, self::SKILL_BODIES)) {
+        $skill = $this->skills->get($slug);
+        if ($skill === null) {
             return new Response('not found', 404, ['Content-Type' => 'text/plain']);
         }
 
-        return new Response(self::SKILL_BODIES[$slug], 200, [
+        return new Response($skill->body, 200, [
             'Content-Type' => 'text/markdown; charset=UTF-8',
             'Cache-Control' => 'public, max-age=3600',
         ]);
-    }
-
-    /**
-     * @return array{name: string, type: string, description: string, url: string, sha256: string}
-     */
-    private function skillEntry(string $name, string $type, string $description, string $url): array
-    {
-        return [
-            'name' => $name,
-            'type' => $type,
-            'description' => $description,
-            'url' => $url,
-            'sha256' => hash('sha256', self::SKILL_BODIES[$name] ?? ''),
-        ];
     }
 
     private function absoluteBase(Request $request): string

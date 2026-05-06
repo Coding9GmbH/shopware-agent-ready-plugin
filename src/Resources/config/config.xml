@@ -170,4 +170,37 @@
             <defaultValue>true</defaultValue>
         </input-field>
     </card>
+
+    <card>
+        <title>Agent runtime endpoints</title>
+        <title lang="de-DE">Agent-Runtime-Endpunkte</title>
+
+        <input-field type="bool">
+            <name>enableMcpServer</name>
+            <label>Host the MCP JSON-RPC server at /mcp</label>
+            <label lang="de-DE">MCP-JSON-RPC-Server unter /mcp betreiben</label>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>enableA2aServer</name>
+            <label>Host the A2A JSON-RPC server at /a2a</label>
+            <label lang="de-DE">A2A-JSON-RPC-Server unter /a2a betreiben</label>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>enableDcr</name>
+            <label>Advertise /api/oauth/register (RFC 7591 Dynamic Client Registration)</label>
+            <label lang="de-DE">/api/oauth/register (RFC 7591) anbieten</label>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>enableX402</name>
+            <label>Publish /.well-known/x402 demo endpoint</label>
+            <label lang="de-DE">/.well-known/x402 Demo-Endpunkt veröffentlichen</label>
+            <defaultValue>true</defaultValue>
+        </input-field>
+    </card>
 </config>

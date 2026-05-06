@@ -4,6 +4,7 @@ namespace Coding9\AgentReady\Tests\Controller;
 
 use Coding9\AgentReady\Controller\WellKnownController;
 use Coding9\AgentReady\Service\AgentConfig;
+use Coding9\AgentReady\Skill\SkillRegistry;
 use Coding9\AgentReady\Tests\Support\ArrayConfigReader;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
@@ -130,7 +131,7 @@ class WellKnownControllerTest extends TestCase
             self::assertArrayHasKey($field, $payload, "missing required A2A field: $field");
         }
 
-        self::assertSame('https://shop.example/store-api', $payload['url']);
+        self::assertSame('https://shop.example/a2a', $payload['url']);
         self::assertSame('JSONRPC', $payload['preferredTransport']);
         self::assertIsArray($payload['defaultInputModes']);
         self::assertIsArray($payload['defaultOutputModes']);
@@ -215,7 +216,7 @@ class WellKnownControllerTest extends TestCase
 
     private function controller(ArrayConfigReader $reader): WellKnownController
     {
-        return new WellKnownController(new AgentConfig($reader));
+        return new WellKnownController(new AgentConfig($reader), new SkillRegistry());
     }
 
     private function request(string $base = 'https://shop.example/'): Request
