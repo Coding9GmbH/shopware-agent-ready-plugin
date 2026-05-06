@@ -1,3 +1,14 @@
+# 0.0.4
+
+Fix für die CI/Release-Pipeline.
+
+- `symfony/runtime` Composer-Plugin in `allow-plugins` aufgenommen
+  (wird transitiv über `shopware/core` gezogen). Ohne diesen Eintrag
+  bricht Composer 2.2+ jeden `composer install` mit einer
+  `PluginManager`-Exception ab.
+- CI-Workflow nutzt jetzt `bash -eo pipefail`, damit
+  `composer ... | tee`-Pipelines Fehler nicht mehr verschlucken.
+
 # 0.0.3
 
 Unabhängiges Code-Review — substantielle Korrekturen.

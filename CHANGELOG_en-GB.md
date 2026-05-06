@@ -1,3 +1,13 @@
+# 0.0.4
+
+CI/release pipeline fix.
+
+- Allow `symfony/runtime` Composer plugin (pulled in transitively by
+  `shopware/core`); without it, Composer 2.2+ aborts `composer install`
+  with a `PluginManager` exception.
+- CI workflow now uses `bash -eo pipefail` so that `composer ... | tee`
+  pipelines no longer mask non-zero exit codes from earlier commands.
+
 # 0.0.3
 
 Independent code review — substantial corrections.
