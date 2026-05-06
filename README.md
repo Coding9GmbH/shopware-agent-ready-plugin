@@ -7,6 +7,17 @@ This open-source plugin implements every recommendation from
 checklist for a Shopware storefront. Drop it in, click "Activate", and your
 shop starts speaking the protocols agents already understand.
 
+> ⚠️ **Disclaimer — showcase project**
+>
+> This plugin was built as a **demonstration / showcase** of what an
+> agent-ready Shopware 6 store can look like. It is provided **as-is, without
+> warranty of any kind**, and there is **no commercial support and no SLA**.
+> **Use at your own risk.** Review the code, test on a staging environment,
+> and decide for yourself whether to ship it to production.
+>
+> *Dieses Plugin ist ein Showcase-Projekt. Nutzung auf eigene Gefahr — keine
+> Gewährleistung, kein Support, keine Garantie.*
+
 | Capability | Standard / Spec | Endpoint / Mechanism |
 | --- | --- | --- |
 | Link response headers | [RFC 8288](https://www.rfc-editor.org/rfc/rfc8288) | `Link:` header on `/` |
