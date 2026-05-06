@@ -138,6 +138,35 @@ Browsers (which prefer `text/html`) get the original HTML untouched. The
 conversion is performed by the dependency-free `HtmlToMarkdownConverter`,
 which also strips noise (`<script>`, `<nav>`, `<footer>`, cookie banners…).
 
+#### Structured product header on PDPs
+
+On `frontend.detail.*` routes the subscriber additionally extracts the
+Schema.org `Product` and `BreadcrumbList` JSON-LD blocks Shopware emits
+out of the box and prepends a compact buying-decision summary:
+
+```markdown
+# Vintage Sneaker
+
+> Shoes › Sneakers
+
+| Field | Value |
+| --- | --- |
+| SKU | SW-001 |
+| Brand | Coding9 |
+| Price | 99.95 EUR |
+| Availability | in stock |
+| URL | https://shop.example/sneaker |
+
+![Vintage Sneaker](https://shop.example/media/sneaker.jpg)
+
+## Description
+
+A very cool sneaker.
+```
+
+Token-budgeted assistants can stop at the table; the generic body still
+follows for agents that want the full marketing copy.
+
 ### `robots.txt`
 
 `RobotsTxtController` serves a robots file with Content-Signal directives:
@@ -211,10 +240,23 @@ point once Shopware ships native DCR.
 
 ### Agentic payments (`/.well-known/x402`)
 
-Returns an [x402](https://www.x402.org/)-shaped `402 payment_required`
-demo body. Wire a real facilitator (Coinbase x402, Stripe Agent Toolkit,
-Visa Intelligent Commerce) into `X402Controller` to settle agentic
-payments before delegating to `POST /store-api/handle-payment`.
+`/.well-known/x402` is a real [x402](https://www.x402.org/) endpoint, not
+just a discovery stub:
+
+  - **`GET /.well-known/x402`** without an `X-PAYMENT` header returns
+    `402 payment_required` with a structured `accepts[]` array describing
+    the payment requirements (default: 1 USDC on `base-sepolia` testnet —
+    flip to mainnet via plugin config).
+  - **`POST /.well-known/x402`** with `X-PAYMENT: <base64 payload>` is
+    forwarded to the configured facilitator's `/verify` endpoint by
+    `X402Verifier`. On success the response is `200` with an
+    `X-PAYMENT-RESPONSE` header and a fulfilment hint pointing at
+    `POST /store-api/handle-payment`.
+
+Settlement is delegated to the facilitator (the operator configures the
+URL — Coinbase x402, Stripe Agent Toolkit, Visa Intelligent Commerce,
+self-hosted, …). The plugin never custodies funds; it only mediates the
+payment-required handshake before committing storefront resources.
 
 ### WebMCP
 

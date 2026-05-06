@@ -198,9 +198,44 @@
 
         <input-field type="bool">
             <name>enableX402</name>
-            <label>Publish /.well-known/x402 demo endpoint</label>
-            <label lang="de-DE">/.well-known/x402 Demo-Endpunkt veröffentlichen</label>
+            <label>Publish /.well-known/x402 endpoint</label>
+            <label lang="de-DE">/.well-known/x402 Endpunkt veröffentlichen</label>
             <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="text">
+            <name>x402FacilitatorUrl</name>
+            <label>x402 facilitator URL (leave empty to disable real verification)</label>
+            <label lang="de-DE">x402 Facilitator-URL (leer = nur Demo-402)</label>
+        </input-field>
+
+        <input-field type="text">
+            <name>x402Scheme</name>
+            <label>x402 scheme</label>
+            <defaultValue>exact</defaultValue>
+        </input-field>
+
+        <input-field type="text">
+            <name>x402Network</name>
+            <label>x402 network</label>
+            <defaultValue>base-sepolia</defaultValue>
+        </input-field>
+
+        <input-field type="text">
+            <name>x402MaxAmount</name>
+            <label>x402 maxAmountRequired (atomic units, e.g. 1000000 = 1 USDC)</label>
+            <defaultValue>1000000</defaultValue>
+        </input-field>
+
+        <input-field type="text">
+            <name>x402Asset</name>
+            <label>x402 asset address (default = USDC on base-sepolia)</label>
+            <defaultValue>0x036CbD53842c5426634e7929541eC2318f3dCF7e</defaultValue>
+        </input-field>
+
+        <input-field type="text">
+            <name>x402PayTo</name>
+            <label>x402 payTo address (your treasury wallet)</label>
         </input-field>
     </card>
 </config>
