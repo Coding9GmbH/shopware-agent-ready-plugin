@@ -39,7 +39,10 @@ class AgentConfig
 
     public function getServiceDocPath(?string $salesChannelId = null): string
     {
-        return $this->string('serviceDocPath', '/docs/api', $salesChannelId);
+        // Defaults to the Shopware Store API OpenAPI 3.1 spec, which every
+        // Shopware 6 install ships out of the box. Operators can swap in a
+        // human-readable docs URL via plugin config.
+        return $this->string('serviceDocPath', '/store-api/_info/openapi3.json', $salesChannelId);
     }
 
     public function isMarkdownNegotiationEnabled(?string $salesChannelId = null): bool

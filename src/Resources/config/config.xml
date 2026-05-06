@@ -15,9 +15,9 @@
 
         <input-field type="text">
             <name>serviceDocPath</name>
-            <label>Path to API documentation (rel="service-doc")</label>
-            <label lang="de-DE">Pfad zur API-Dokumentation (rel="service-doc")</label>
-            <defaultValue>/docs/api</defaultValue>
+            <label>Path to API documentation (rel="service-doc"). Defaults to the Shopware Store API OpenAPI spec.</label>
+            <label lang="de-DE">Pfad zur API-Dokumentation (rel="service-doc"). Standard: Shopware Store API OpenAPI-Spezifikation.</label>
+            <defaultValue>/store-api/_info/openapi3.json</defaultValue>
         </input-field>
     </card>
 
