@@ -35,3 +35,19 @@ jobs:
 
       - name: Run PHPUnit
         run: vendor/bin/phpunit --testdox
+
+      - name: Run PHPStan
+        run: vendor/bin/phpstan analyse --no-progress
+
+  validate:
+    runs-on: ubuntu-latest
+    name: shopware-cli validate
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, dom, libxml, json, intl, gd
+          coverage: none
+      - uses: FriendsOfShopware/shopware-cli-action@v1
+      - run: shopware-cli extension validate .

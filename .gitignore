@@ -1,5 +1,7 @@
 /vendor/
 /composer.lock
+/.build/
+/.sandbox/
 /.phpunit.cache/
 /.phpunit.result.cache
 /.idea/

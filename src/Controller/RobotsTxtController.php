@@ -27,21 +27,26 @@ class RobotsTxtController extends AbstractController
         defaults: ['auth_required' => false, 'XmlHttpRequest' => true],
         methods: ['GET']
     )]
-    public function robotsTxt(): Response
+    public function robotsTxt(\Symfony\Component\HttpFoundation\Request $request): Response
     {
-        $body = $this->build();
+        $sc = null;
+        $value = $request->attributes->get('sw-sales-channel-id');
+        if (is_string($value) && $value !== '') {
+            $sc = $value;
+        }
+        $body = $this->build($sc);
         return new Response($body, 200, [
             'Content-Type' => 'text/plain; charset=UTF-8',
             'Cache-Control' => 'public, max-age=3600',
         ]);
     }
 
-    public function build(): string
+    public function build(?string $salesChannelId = null): string
     {
         $lines = [];
 
-        if ($this->config->isContentSignalsEnabled()) {
-            $signals = $this->config->getContentSignals();
+        if ($this->config->isContentSignalsEnabled($salesChannelId)) {
+            $signals = $this->config->getContentSignals($salesChannelId);
             $parts = [];
             foreach ($signals as $name => $value) {
                 $parts[] = $name . '=' . $value;

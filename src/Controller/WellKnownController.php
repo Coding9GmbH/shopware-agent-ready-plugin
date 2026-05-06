@@ -8,7 +8,6 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\Routing\RouterInterface;
 
 /**
  * Serves /.well-known/* endpoints used by AI agents, MCP and A2A clients to
@@ -22,7 +21,6 @@ class WellKnownController extends AbstractController
 {
     public function __construct(
         private readonly AgentConfig $config,
-        private readonly RouterInterface $router,
     ) {
     }
 
@@ -34,7 +32,7 @@ class WellKnownController extends AbstractController
     )]
     public function apiCatalog(Request $request): Response
     {
-        if (!$this->config->isApiCatalogEnabled()) {
+        if (!$this->config->isApiCatalogEnabled($this->salesChannelId($request))) {
             return $this->disabled();
         }
 
@@ -78,7 +76,7 @@ class WellKnownController extends AbstractController
     )]
     public function oauthAuthorizationServer(Request $request): Response
     {
-        if (!$this->config->isOAuthDiscoveryEnabled()) {
+        if (!$this->config->isOAuthDiscoveryEnabled($this->salesChannelId($request))) {
             return $this->disabled();
         }
 
@@ -126,7 +124,7 @@ class WellKnownController extends AbstractController
     )]
     public function oauthProtectedResource(Request $request): Response
     {
-        if (!$this->config->isOAuthProtectedResourceEnabled()) {
+        if (!$this->config->isOAuthProtectedResourceEnabled($this->salesChannelId($request))) {
             return $this->disabled();
         }
 
@@ -151,12 +149,13 @@ class WellKnownController extends AbstractController
     )]
     public function mcpServerCard(Request $request): Response
     {
-        if (!$this->config->isMcpServerCardEnabled()) {
+        $sc = $this->salesChannelId($request);
+        if (!$this->config->isMcpServerCardEnabled($sc)) {
             return $this->disabled();
         }
 
         $base = $this->absoluteBase($request);
-        $endpoint = $this->config->getMcpServerEndpoint();
+        $endpoint = $this->config->getMcpServerEndpoint($sc);
 
         $payload = [
             'serverInfo' => [
@@ -185,16 +184,17 @@ class WellKnownController extends AbstractController
     )]
     public function a2aAgentCard(Request $request): Response
     {
-        if (!$this->config->isA2aAgentCardEnabled()) {
+        $sc = $this->salesChannelId($request);
+        if (!$this->config->isA2aAgentCardEnabled($sc)) {
             return $this->disabled();
         }
 
         $base = $this->absoluteBase($request);
 
         $payload = [
-            'name' => $this->config->getA2aAgentName(),
+            'name' => $this->config->getA2aAgentName($sc),
             'version' => '1.0.0',
-            'description' => $this->config->getA2aAgentDescription(),
+            'description' => $this->config->getA2aAgentDescription($sc),
             'supportedInterfaces' => [
                 [
                     'url' => $base . '/store-api',
@@ -242,7 +242,7 @@ class WellKnownController extends AbstractController
     )]
     public function agentSkillsIndex(Request $request): Response
     {
-        if (!$this->config->isAgentSkillsIndexEnabled()) {
+        if (!$this->config->isAgentSkillsIndexEnabled($this->salesChannelId($request))) {
             return $this->disabled();
         }
 
@@ -284,9 +284,9 @@ class WellKnownController extends AbstractController
         defaults: ['auth_required' => false, 'XmlHttpRequest' => true],
         methods: ['GET']
     )]
-    public function agentSkillMarkdown(string $slug): Response
+    public function agentSkillMarkdown(Request $request, string $slug): Response
     {
-        if (!$this->config->isAgentSkillsIndexEnabled()) {
+        if (!$this->config->isAgentSkillsIndexEnabled($this->salesChannelId($request))) {
             return $this->disabled();
         }
 
@@ -335,6 +335,12 @@ class WellKnownController extends AbstractController
         $scheme = $request->getScheme();
         $host = $request->getHttpHost();
         return rtrim($scheme . '://' . $host, '/');
+    }
+
+    private function salesChannelId(Request $request): ?string
+    {
+        $value = $request->attributes->get('sw-sales-channel-id');
+        return is_string($value) && $value !== '' ? $value : null;
     }
 
     /**

@@ -28,7 +28,14 @@ shop starts speaking the protocols agents already understand.
 
 ## Installation
 
-### Via composer (recommended)
+### Via the pre-built zip (easiest)
+
+Grab `Coding9AgentReady-<version>.zip` from the
+[GitHub Releases page](https://github.com/coding9gmbh/shopware-agent-ready/releases/latest)
+and upload it via *Extensions → My extensions → Upload extension*.
+Each release is built and signed by the [tag-driven pipeline](.github/workflows/release.yml).
+
+### Via composer
 
 ```bash
 composer require coding9/shopware-agent-ready
@@ -46,6 +53,14 @@ cd ../..
 bin/console plugin:refresh
 bin/console plugin:install --activate Coding9AgentReady
 bin/console cache:clear
+```
+
+### Build a release zip locally
+
+```bash
+make install   # composer install
+make release   # test + phpstan + shopware-cli validate + zip
+ls .build/     # Coding9AgentReady-<version>.zip
 ```
 
 ## Configuration
@@ -186,12 +201,39 @@ turn green.
 
 MIT — see [LICENSE](LICENSE).
 
+## Releasing
+
+The release pipeline is open-source and tag-driven. Push a semver tag and
+[`.github/workflows/release.yml`](.github/workflows/release.yml) does the rest:
+
+```bash
+# bump composer.json version, edit CHANGELOG_*.md, then:
+git tag -a v0.0.1 -m "v0.0.1"
+git push origin v0.0.1
+```
+
+The pipeline:
+
+1. checks out the tagged commit,
+2. verifies the tag matches `composer.json` `version`,
+3. runs `composer install`, `phpunit`, `phpstan`,
+4. runs `shopware-cli extension validate`,
+5. builds `.build/Coding9AgentReady-<version>.zip` (vendor-free, ~28 KB),
+6. extracts release notes from `CHANGELOG_en-GB.md`,
+7. publishes a public GitHub Release with the zip attached and links back to
+   the README, CHANGELOG and the Cloudflare post that started it all.
+
 ## Credits
 
-- Inspired by [Cloudflare's agent readiness post](https://blog.cloudflare.com/agent-readiness/).
+- Inspired by
+  [Cloudflare's agent readiness post](https://blog.cloudflare.com/agent-readiness/).
 - Special thanks to **Martin Weinmayer ([dasistweb](https://www.dasistweb.de/))**
   for the inspiration to make Shopware shops first-class citizens of the
   agentic web. Danke Martin!
+- Built with the help of the
+  [`Coding9GmbH/shopware-agentic-team`](https://github.com/Coding9GmbH/shopware-agentic-team)
+  Claude Code skill pack — `shopware-plugin-dev`, `shopware-reviewer` and
+  `shopware-store-publisher` shaped large parts of the conventions used here.
 - Open-sourced and maintained by [coding9 GmbH](https://coding9.com).
 
 Pull requests welcome.

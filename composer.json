@@ -3,7 +3,7 @@
     "description": "Make your Shopware 6 store agent-ready: Link headers, Markdown negotiation, Content Signals, well-known endpoints (API catalog, OAuth/OIDC, MCP, A2A, Agent Skills) and WebMCP.",
     "type": "shopware-platform-plugin",
     "license": "MIT",
-    "version": "1.0.0",
+    "version": "0.0.1",
     "keywords": [
         "shopware",
         "shopware6",
@@ -40,8 +40,8 @@
             "en-GB": "Agent Ready"
         },
         "description": {
-            "de-DE": "Macht Ihren Shopware 6 Shop bereit für AI-Agenten (Link Header, Markdown, well-known Endpunkte, WebMCP).",
-            "en-GB": "Make your Shopware 6 store ready for AI agents (Link headers, Markdown, well-known endpoints, WebMCP)."
+            "de-DE": "Macht Ihren Shopware 6 Shop bereit für KI-Agenten: Link Header (RFC 8288), Markdown for Agents, Content Signals, /.well-known Discovery-Endpunkte und WebMCP.",
+            "en-GB": "Make your Shopware 6 store ready for AI agents: Link headers (RFC 8288), Markdown for Agents, Content Signals, /.well-known discovery endpoints and WebMCP."
         },
         "manufacturerLink": {
             "de-DE": "https://coding9.com",
@@ -50,7 +50,8 @@
         "supportLink": {
             "de-DE": "https://github.com/coding9gmbh/shopware-agent-ready",
             "en-GB": "https://github.com/coding9gmbh/shopware-agent-ready"
-        }
+        },
+        "plugin-icon": "src/Resources/config/plugin.png"
     },
     "autoload": {
         "psr-4": {

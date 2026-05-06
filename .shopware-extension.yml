@@ -1,0 +1,111 @@
+compatibility_date: 2026-02-11
+
+store:
+  availabilities:
+    - German
+    - International
+  default_locale: en_GB
+  localizations:
+    - de_DE
+    - en_GB
+  categories:
+    - SEOOptimization
+  type: extension
+  icon: src/Resources/store/icon.png
+  automatic_bugfix_version_compatibility: true
+
+  description:
+    de: file:src/Resources/store/de-DE.description.md
+    en: file:src/Resources/store/en-GB.description.md
+  installation_manual:
+    de: file:src/Resources/store/de-DE.installation.md
+    en: file:src/Resources/store/en-GB.installation.md
+
+  tags:
+    de:
+      - AI
+      - Agent
+      - MCP
+      - SEO
+      - Discovery
+    en:
+      - ai
+      - agent
+      - mcp
+      - seo
+      - discovery
+
+  highlights:
+    de:
+      - Link Response-Header für Agent-Discovery (RFC 8288)
+      - Markdown-Antworten für Agenten (Accept text/markdown)
+      - Content Signals in robots.txt (ai-train, search, ai-input)
+      - /.well-known Endpunkte (api-catalog, oauth, mcp, a2a, agent-skills)
+      - WebMCP Tool-Injection im Storefront
+    en:
+      - Link response headers for agent discovery (RFC 8288)
+      - Markdown for Agents (Accept text/markdown content negotiation)
+      - Content Signals in robots.txt (ai-train, search, ai-input)
+      - /.well-known endpoints (api-catalog, oauth, mcp, a2a, agent-skills)
+      - WebMCP tool injection on the storefront
+
+  features:
+    de:
+      - RFC 8288 Link Header
+      - Markdown Content Negotiation
+      - Content Signals
+      - RFC 9727 API Catalog
+      - RFC 8414 / OIDC Discovery
+      - RFC 9728 Protected Resource Metadata
+      - MCP Server Card
+      - A2A Agent Card
+      - Agent Skills Index
+      - WebMCP
+    en:
+      - RFC 8288 Link headers
+      - Markdown content negotiation
+      - Content Signals
+      - RFC 9727 API catalog
+      - RFC 8414 / OIDC discovery
+      - RFC 9728 protected resource metadata
+      - MCP Server Card
+      - A2A Agent Card
+      - Agent Skills index
+      - WebMCP
+
+  videos:
+    de: []
+    en: []
+
+build:
+  zip:
+    # Plugin only depends on shopware/* packages which are provided by the
+    # host shop, so we don't need to bundle vendor/.
+    composer:
+      enabled: false
+    npm:
+      enabled: false
+    pack:
+      excludes:
+        paths:
+          - .build
+          - .github
+          - .idea
+          - .phpunit.cache
+          - .sandbox
+          - composer.lock
+          - phpstan.neon.dist
+          - phpunit.xml.dist
+          - tests
+          - vendor
+          - Makefile
+          - CONTRIBUTING.md
+          - CLAUDE.md
+  extensions:
+    Administration:
+      enabled: false
+    Storefront:
+      enabled: true
+
+changelog:
+  enabled: true

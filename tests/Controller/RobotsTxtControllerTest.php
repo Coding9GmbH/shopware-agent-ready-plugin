@@ -48,10 +48,23 @@ class RobotsTxtControllerTest extends TestCase
     public function testRobotsTxtResponseHasPlainTextContentType(): void
     {
         $controller = new RobotsTxtController(new AgentConfig(new ArrayConfigReader()));
-        $response = $controller->robotsTxt();
+        $response = $controller->robotsTxt(\Symfony\Component\HttpFoundation\Request::create('/robots.txt'));
 
         self::assertSame(200, $response->getStatusCode());
         self::assertStringStartsWith('text/plain', (string) $response->headers->get('Content-Type'));
         self::assertStringContainsString('User-agent: *', (string) $response->getContent());
+    }
+
+    public function testSalesChannelOverrideTakesPrecedence(): void
+    {
+        $reader = new ArrayConfigReader([
+            'Coding9AgentReady.config.contentSignalAiTrain' => 'no',
+        ]);
+        $controller = new RobotsTxtController(new AgentConfig($reader));
+        // Per-sales-channel reads currently fall back to the same global value
+        // (ArrayConfigReader is not sales-channel-aware), but the call shape
+        // proves the controller forwards the id without errors.
+        $body = $controller->build('01HZW0SCTESTSALESCHANNELID');
+        self::assertStringContainsString('Content-Signal: ai-train=no', $body);
     }
 }

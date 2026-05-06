@@ -39,12 +39,13 @@ class MarkdownNegotiationSubscriber implements EventSubscriberInterface
             return;
         }
 
-        if (!$this->config->isMarkdownNegotiationEnabled()) {
-            return;
-        }
-
         $request = $event->getRequest();
         $response = $event->getResponse();
+        $salesChannelId = $this->salesChannelId($request);
+
+        if (!$this->config->isMarkdownNegotiationEnabled($salesChannelId)) {
+            return;
+        }
 
         if (!$this->wantsMarkdown($request)) {
             // Help intermediary caches store both representations.
@@ -107,6 +108,12 @@ class MarkdownNegotiationSubscriber implements EventSubscriberInterface
             return false;
         }
         return str_contains(strtolower($contentType), 'text/html');
+    }
+
+    private function salesChannelId(Request $request): ?string
+    {
+        $value = $request->attributes->get('sw-sales-channel-id');
+        return is_string($value) && $value !== '' ? $value : null;
     }
 
     private function appendVary(Response $response, string $header): void

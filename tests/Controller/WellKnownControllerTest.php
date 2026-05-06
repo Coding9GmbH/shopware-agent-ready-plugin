@@ -7,9 +7,6 @@ use Coding9\AgentReady\Service\AgentConfig;
 use Coding9\AgentReady\Tests\Support\ArrayConfigReader;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Routing\RequestContext;
-use Symfony\Component\Routing\RouteCollection;
-use Symfony\Component\Routing\RouterInterface;
 
 class WellKnownControllerTest extends TestCase
 {
@@ -131,7 +128,7 @@ class WellKnownControllerTest extends TestCase
     public function testAgentSkillMarkdownReturnsContent(): void
     {
         $controller = $this->controller(new ArrayConfigReader());
-        $response = $controller->agentSkillMarkdown('search-products');
+        $response = $controller->agentSkillMarkdown($this->request(), 'search-products');
 
         self::assertSame(200, $response->getStatusCode());
         self::assertStringStartsWith('text/markdown', (string) $response->headers->get('Content-Type'));
@@ -141,7 +138,7 @@ class WellKnownControllerTest extends TestCase
     public function testAgentSkillMarkdownReturns404ForUnknownSlug(): void
     {
         $controller = $this->controller(new ArrayConfigReader());
-        $response = $controller->agentSkillMarkdown('does-not-exist');
+        $response = $controller->agentSkillMarkdown($this->request(), 'does-not-exist');
         self::assertSame(404, $response->getStatusCode());
     }
 
@@ -155,7 +152,7 @@ class WellKnownControllerTest extends TestCase
         );
 
         foreach ($index['skills'] as $skill) {
-            $body = (string) $controller->agentSkillMarkdown($skill['name'])->getContent();
+            $body = (string) $controller->agentSkillMarkdown($this->request(), $skill['name'])->getContent();
             self::assertSame(
                 $skill['sha256'],
                 hash('sha256', $body),
@@ -164,26 +161,26 @@ class WellKnownControllerTest extends TestCase
         }
     }
 
+    public function testRequestSalesChannelIdIsForwardedToConfig(): void
+    {
+        // Requests carrying sw-sales-channel-id should not break the response,
+        // and the well-known endpoint should still work as before.
+        $request = Request::create('https://shop.example/');
+        $request->attributes->set('sw-sales-channel-id', '01HZW0SCTESTSALESCHANNELID');
+        $controller = $this->controller(new ArrayConfigReader());
+
+        self::assertSame(200, $controller->apiCatalog($request)->getStatusCode());
+        self::assertSame(200, $controller->mcpServerCard($request)->getStatusCode());
+        self::assertSame(200, $controller->a2aAgentCard($request)->getStatusCode());
+    }
+
     private function controller(ArrayConfigReader $reader): WellKnownController
     {
-        return new WellKnownController(new AgentConfig($reader), $this->router());
+        return new WellKnownController(new AgentConfig($reader));
     }
 
     private function request(string $base = 'https://shop.example/'): Request
     {
         return Request::create($base);
-    }
-
-    private function router(): RouterInterface
-    {
-        return new class implements RouterInterface {
-            private RequestContext $context;
-            public function __construct() { $this->context = new RequestContext(); }
-            public function setContext(RequestContext $context): void { $this->context = $context; }
-            public function getContext(): RequestContext { return $this->context; }
-            public function getRouteCollection(): RouteCollection { return new RouteCollection(); }
-            public function generate(string $name, array $parameters = [], int $referenceType = self::ABSOLUTE_PATH): string { return '/'; }
-            public function match(string $pathinfo): array { return []; }
-        };
     }
 }

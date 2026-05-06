@@ -37,11 +37,13 @@ class LinkHeaderSubscriber implements EventSubscriberInterface
             return;
         }
 
-        if (!$this->config->isLinkHeadersEnabled()) {
+        $salesChannelId = $this->salesChannelId($request);
+
+        if (!$this->config->isLinkHeadersEnabled($salesChannelId)) {
             return;
         }
 
-        $links = $this->buildLinks();
+        $links = $this->buildLinks($salesChannelId);
 
         // RFC 7230 allows multiple Link headers as well as a single comma-separated header.
         // We send one entry per logical relation as separate values; Symfony will fold them
@@ -54,36 +56,36 @@ class LinkHeaderSubscriber implements EventSubscriberInterface
     /**
      * @return string[]
      */
-    public function buildLinks(): array
+    public function buildLinks(?string $salesChannelId = null): array
     {
         $links = [];
 
-        if ($this->config->isApiCatalogEnabled()) {
+        if ($this->config->isApiCatalogEnabled($salesChannelId)) {
             $links[] = '</.well-known/api-catalog>; rel="api-catalog"';
         }
 
-        $serviceDoc = $this->config->getServiceDocPath();
+        $serviceDoc = $this->config->getServiceDocPath($salesChannelId);
         if ($serviceDoc !== '') {
             $links[] = '<' . $serviceDoc . '>; rel="service-doc"';
         }
 
-        if ($this->config->isMcpServerCardEnabled()) {
+        if ($this->config->isMcpServerCardEnabled($salesChannelId)) {
             $links[] = '</.well-known/mcp/server-card.json>; rel="mcp-server-card"';
         }
 
-        if ($this->config->isA2aAgentCardEnabled()) {
+        if ($this->config->isA2aAgentCardEnabled($salesChannelId)) {
             $links[] = '</.well-known/agent-card.json>; rel="a2a-agent-card"';
         }
 
-        if ($this->config->isAgentSkillsIndexEnabled()) {
+        if ($this->config->isAgentSkillsIndexEnabled($salesChannelId)) {
             $links[] = '</.well-known/agent-skills/index.json>; rel="agent-skills"';
         }
 
-        if ($this->config->isOAuthDiscoveryEnabled()) {
+        if ($this->config->isOAuthDiscoveryEnabled($salesChannelId)) {
             $links[] = '</.well-known/oauth-authorization-server>; rel="oauth-authorization-server"';
         }
 
-        if ($this->config->isOAuthProtectedResourceEnabled()) {
+        if ($this->config->isOAuthProtectedResourceEnabled($salesChannelId)) {
             $links[] = '</.well-known/oauth-protected-resource>; rel="oauth-protected-resource"';
         }
 
@@ -100,5 +102,13 @@ class LinkHeaderSubscriber implements EventSubscriberInterface
         // fallback for sub-requests / proxied paths
         $path = $request->getPathInfo();
         return $path === '/' || $path === '';
+    }
+
+    private function salesChannelId(\Symfony\Component\HttpFoundation\Request $request): ?string
+    {
+        // Storefront RequestTransformer sets PlatformRequest::ATTRIBUTE_SALES_CHANNEL_ID
+        // (= 'sw-sales-channel-id'). Read it as a string to stay decoupled.
+        $value = $request->attributes->get('sw-sales-channel-id');
+        return is_string($value) && $value !== '' ? $value : null;
     }
 }
