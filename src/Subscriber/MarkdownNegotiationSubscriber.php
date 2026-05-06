@@ -4,6 +4,8 @@ namespace Coding9\AgentReady\Subscriber;
 
 use Coding9\AgentReady\Service\AgentConfig;
 use Coding9\AgentReady\Service\HtmlToMarkdownConverter;
+use Coding9\AgentReady\Service\JsonLdExtractor;
+use Coding9\AgentReady\Service\ProductMarkdownRenderer;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -38,6 +40,8 @@ class MarkdownNegotiationSubscriber implements EventSubscriberInterface
     public function __construct(
         private readonly AgentConfig $config,
         private readonly HtmlToMarkdownConverter $converter,
+        private readonly JsonLdExtractor $jsonLd,
+        private readonly ProductMarkdownRenderer $productRenderer,
     ) {
     }
 
@@ -79,8 +83,16 @@ class MarkdownNegotiationSubscriber implements EventSubscriberInterface
 
         $html = (string) $response->getContent();
         $result = $this->converter->convertWithTokens($html);
+        $markdown = $result['markdown'];
 
-        $response->setContent($result['markdown']);
+        if ($this->isProductDetailRoute($request)) {
+            $structured = $this->productRenderer->render($this->jsonLd->extract($html));
+            if ($structured !== '') {
+                $markdown = $structured . "\n" . $markdown;
+            }
+        }
+
+        $response->setContent($markdown);
         $response->headers->set('Content-Type', self::MEDIA_TYPE . '; charset=UTF-8');
         $response->headers->set('x-markdown-tokens', (string) $result['tokens']);
         // The body just changed; let Response::prepare() recompute Content-Length
@@ -136,6 +148,12 @@ class MarkdownNegotiationSubscriber implements EventSubscriberInterface
             }
         }
         return null;
+    }
+
+    private function isProductDetailRoute(Request $request): bool
+    {
+        $route = (string) $request->attributes->get('_route', '');
+        return str_starts_with($route, 'frontend.detail.');
     }
 
     private function isConvertibleRoute(Request $request): bool

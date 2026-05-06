@@ -93,6 +93,24 @@ MD;
             . 'and supports `Accept: text/markdown` content negotiation on every page.';
         $sections[] = '';
 
+        $runtime = [];
+        if ($this->config->isMcpServerEnabled($salesChannelId)) {
+            $runtime[] = "- [MCP server]({$base}/mcp): JSON-RPC 2.0 endpoint hosting "
+                . '`tools/list` and `tools/call`. Skills proxy to Shopware\'s Store-API '
+                . 'and return ready-to-use product, cart and session data.';
+        }
+        if ($this->config->isA2aServerEnabled($salesChannelId)) {
+            $runtime[] = "- [A2A server]({$base}/a2a): JSON-RPC 2.0 `message/send` "
+                . 'endpoint sharing the same skill set as the MCP server.';
+        }
+
+        if ($runtime) {
+            $sections[] = '## Runtime endpoints';
+            $sections[] = '';
+            $sections = array_merge($sections, $runtime);
+            $sections[] = '';
+        }
+
         $discovery = [];
         if ($this->config->isApiCatalogEnabled($salesChannelId)) {
             $discovery[] = "- [API catalog]({$base}/.well-known/api-catalog): Linkset (RFC 9727) "
@@ -108,7 +126,8 @@ MD;
         }
         if ($this->config->isAgentSkillsIndexEnabled($salesChannelId)) {
             $discovery[] = "- [Agent skills index]({$base}/.well-known/agent-skills/index.json): "
-                . 'Skills the storefront advertises (search-products, place-order, manage-cart).';
+                . 'Skills the storefront advertises (search-products, get-product, '
+                . 'create-context, get-cart, manage-cart, customer-login, customer-logout, place-order).';
         }
         if ($this->config->isOAuthDiscoveryEnabled($salesChannelId)) {
             $discovery[] = "- [OAuth metadata]({$base}/.well-known/oauth-authorization-server): "

@@ -1,0 +1,116 @@
+<?php declare(strict_types=1);
+
+namespace Coding9\AgentReady\Controller;
+
+use Coding9\AgentReady\Http\CorsResolver;
+use Coding9\AgentReady\Mcp\McpServer;
+use Coding9\AgentReady\Service\AgentConfig;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Attribute\Route;
+
+/**
+ * HTTP transport for the MCP server.
+ *
+ * Accepts a JSON-RPC 2.0 request body at POST /mcp and returns the
+ * dispatcher result. Batched requests (JSON arrays) are supported per
+ * the JSON-RPC 2.0 spec — handy for agent hosts that pipeline
+ * `initialize` + `tools/list` in a single round-trip.
+ */
+#[Route(defaults: ['_routeScope' => ['storefront']])]
+class McpController extends AbstractController
+{
+    public function __construct(
+        private readonly AgentConfig $config,
+        private readonly McpServer $server,
+    ) {
+    }
+
+    #[Route(
+        path: '/mcp',
+        name: 'frontend.coding9.agent_ready.mcp',
+        defaults: ['auth_required' => false, 'XmlHttpRequest' => true, 'csrf_protected' => false],
+        methods: ['POST']
+    )]
+    public function dispatch(Request $request): Response
+    {
+        $sc = $this->salesChannelId($request);
+        if (!$this->config->isMcpServerEnabled($sc)) {
+            return new Response('not found', 404, ['Content-Type' => 'text/plain']);
+        }
+
+        $payload = json_decode((string) $request->getContent(), true);
+        if (!is_array($payload)) {
+            return $this->jsonRpcError($request, null, -32700, 'parse error');
+        }
+
+        if (array_is_list($payload)) {
+            $responses = [];
+            foreach ($payload as $entry) {
+                if (!is_array($entry)) {
+                    $responses[] = $this->errorBody(null, -32600, 'invalid request');
+                    continue;
+                }
+                $r = $this->server->handle($entry, $sc);
+                if ($r !== null) {
+                    $responses[] = $r;
+                }
+            }
+            if ($responses === []) {
+                $empty = new Response('', 204);
+                $this->applyCors($request, $empty);
+                return $empty;
+            }
+            return $this->jsonResponse($request, $responses);
+        }
+
+        $response = $this->server->handle($payload, $sc);
+        if ($response === null) {
+            $empty = new Response('', 204);
+            $this->applyCors($request, $empty);
+            return $empty;
+        }
+        return $this->jsonResponse($request, $response);
+    }
+
+    /** @param array<int|string, mixed> $payload */
+    private function jsonResponse(Request $request, array $payload): JsonResponse
+    {
+        $response = new JsonResponse($payload);
+        $response->headers->set('Cache-Control', 'no-store');
+        $this->applyCors($request, $response);
+        return $response;
+    }
+
+    private function jsonRpcError(Request $request, int|string|null $id, int $code, string $message): JsonResponse
+    {
+        return $this->jsonResponse($request, $this->errorBody($id, $code, $message));
+    }
+
+    private function applyCors(Request $request, Response $response): void
+    {
+        $allow = CorsResolver::resolve($request, $this->config->getCorsAllowedOrigins($this->salesChannelId($request)));
+        if ($allow !== null) {
+            $response->headers->set('Access-Control-Allow-Origin', $allow);
+            $response->headers->set('Vary', 'Origin');
+        }
+    }
+
+    /** @return array<string, mixed> */
+    private function errorBody(int|string|null $id, int $code, string $message): array
+    {
+        return [
+            'jsonrpc' => '2.0',
+            'id' => $id,
+            'error' => ['code' => $code, 'message' => $message],
+        ];
+    }
+
+    private function salesChannelId(Request $request): ?string
+    {
+        $value = $request->attributes->get('sw-sales-channel-id');
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+}

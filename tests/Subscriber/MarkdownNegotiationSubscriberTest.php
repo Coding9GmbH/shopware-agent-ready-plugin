@@ -4,6 +4,8 @@ namespace Coding9\AgentReady\Tests\Subscriber;
 
 use Coding9\AgentReady\Service\AgentConfig;
 use Coding9\AgentReady\Service\HtmlToMarkdownConverter;
+use Coding9\AgentReady\Service\JsonLdExtractor;
+use Coding9\AgentReady\Service\ProductMarkdownRenderer;
 use Coding9\AgentReady\Subscriber\MarkdownNegotiationSubscriber;
 use Coding9\AgentReady\Tests\Support\ArrayConfigReader;
 use PHPUnit\Framework\TestCase;
@@ -106,6 +108,48 @@ class MarkdownNegotiationSubscriberTest extends TestCase
         self::assertStringStartsWith('text/html', (string) $event->getResponse()->headers->get('Content-Type'));
     }
 
+    public function testProductDetailPagePrependsStructuredHeader(): void
+    {
+        $html = '<html><head>'
+            . '<script type="application/ld+json">'
+            . json_encode([
+                '@context' => 'https://schema.org',
+                '@type' => 'Product',
+                'name' => 'Vintage Sneaker',
+                'sku' => 'SW-001',
+                'offers' => [
+                    'price' => '99.95',
+                    'priceCurrency' => 'EUR',
+                    'availability' => 'https://schema.org/InStock',
+                ],
+            ])
+            . '</script>'
+            . '</head><body><main><p>marketing copy</p></main></body></html>';
+
+        $event = $this->event('text/markdown', $html, 'frontend.detail.page');
+        $this->subscriber()->onResponse($event);
+
+        $body = (string) $event->getResponse()->getContent();
+        self::assertStringContainsString('# Vintage Sneaker', $body);
+        self::assertStringContainsString('| Price | 99.95 EUR |', $body);
+        self::assertStringContainsString('| Availability | in stock |', $body);
+        self::assertStringContainsString('marketing copy', $body, 'generic body must follow the structured header');
+    }
+
+    public function testHomepageDoesNotGetProductHeader(): void
+    {
+        $html = '<html><head>'
+            . '<script type="application/ld+json">'
+            . json_encode(['@type' => 'Product', 'name' => 'Should not show'])
+            . '</script>'
+            . '</head><body><main><p>home</p></main></body></html>';
+        $event = $this->event('text/markdown', $html, 'frontend.home.page');
+        $this->subscriber()->onResponse($event);
+
+        $body = (string) $event->getResponse()->getContent();
+        self::assertStringNotContainsString('Should not show', $body);
+    }
+
     public function testStaleContentLengthAndEncodingAreRemoved(): void
     {
         $request = Request::create('/');
@@ -134,7 +178,12 @@ class MarkdownNegotiationSubscriberTest extends TestCase
 
     private function subscriberWith(ArrayConfigReader $reader): MarkdownNegotiationSubscriber
     {
-        return new MarkdownNegotiationSubscriber(new AgentConfig($reader), new HtmlToMarkdownConverter());
+        return new MarkdownNegotiationSubscriber(
+            new AgentConfig($reader),
+            new HtmlToMarkdownConverter(),
+            new JsonLdExtractor(),
+            new ProductMarkdownRenderer(),
+        );
     }
 
     private function event(string $accept, string $body, string $route = 'frontend.home.page'): ResponseEvent

@@ -6,6 +6,8 @@
     <services>
         <!-- Services -->
         <service id="Coding9\AgentReady\Service\HtmlToMarkdownConverter"/>
+        <service id="Coding9\AgentReady\Service\JsonLdExtractor"/>
+        <service id="Coding9\AgentReady\Service\ProductMarkdownRenderer"/>
 
         <service id="Coding9\AgentReady\Service\SystemConfigReader">
             <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
@@ -17,6 +19,36 @@
             <argument type="service" id="Coding9\AgentReady\Service\ConfigReader"/>
         </service>
 
+        <service id="Coding9\AgentReady\Skill\SkillRegistry"/>
+
+        <service id="Coding9\AgentReady\StoreApi\KernelStoreApiClient">
+            <argument type="service" id="http_kernel"/>
+        </service>
+        <service id="Coding9\AgentReady\StoreApi\StoreApiClient" alias="Coding9\AgentReady\StoreApi\KernelStoreApiClient"/>
+
+        <service id="Coding9\AgentReady\StoreApi\RepositorySalesChannelKeyResolver">
+            <argument type="service" id="sales_channel.repository"/>
+        </service>
+        <service id="Coding9\AgentReady\StoreApi\SalesChannelKeyResolver" alias="Coding9\AgentReady\StoreApi\RepositorySalesChannelKeyResolver"/>
+
+        <service id="Coding9\AgentReady\Skill\SkillExecutor">
+            <argument type="service" id="Coding9\AgentReady\StoreApi\StoreApiClient"/>
+            <argument type="service" id="Coding9\AgentReady\StoreApi\SalesChannelKeyResolver"/>
+            <argument type="service" id="Coding9\AgentReady\Service\AgentConfig"/>
+        </service>
+
+        <service id="Coding9\AgentReady\Mcp\McpServer">
+            <argument type="service" id="Coding9\AgentReady\Skill\SkillRegistry"/>
+            <argument type="service" id="Coding9\AgentReady\Skill\SkillExecutor"/>
+            <argument type="service" id="Coding9\AgentReady\Service\AgentConfig"/>
+        </service>
+
+        <service id="Coding9\AgentReady\A2a\A2aServer">
+            <argument type="service" id="Coding9\AgentReady\Skill\SkillRegistry"/>
+            <argument type="service" id="Coding9\AgentReady\Skill\SkillExecutor"/>
+            <argument type="service" id="Coding9\AgentReady\Service\AgentConfig"/>
+        </service>
+
         <!-- Subscribers -->
         <service id="Coding9\AgentReady\Subscriber\LinkHeaderSubscriber">
             <argument type="service" id="Coding9\AgentReady\Service\AgentConfig"/>
@@ -26,12 +58,31 @@
         <service id="Coding9\AgentReady\Subscriber\MarkdownNegotiationSubscriber">
             <argument type="service" id="Coding9\AgentReady\Service\AgentConfig"/>
             <argument type="service" id="Coding9\AgentReady\Service\HtmlToMarkdownConverter"/>
+            <argument type="service" id="Coding9\AgentReady\Service\JsonLdExtractor"/>
+            <argument type="service" id="Coding9\AgentReady\Service\ProductMarkdownRenderer"/>
             <tag name="kernel.event_subscriber"/>
         </service>
 
         <!-- Controllers -->
         <service id="Coding9\AgentReady\Controller\WellKnownController" public="true">
             <argument type="service" id="Coding9\AgentReady\Service\AgentConfig"/>
+            <argument type="service" id="Coding9\AgentReady\Skill\SkillRegistry"/>
+            <call method="setContainer">
+                <argument type="service" id="service_container"/>
+            </call>
+        </service>
+
+        <service id="Coding9\AgentReady\Controller\McpController" public="true">
+            <argument type="service" id="Coding9\AgentReady\Service\AgentConfig"/>
+            <argument type="service" id="Coding9\AgentReady\Mcp\McpServer"/>
+            <call method="setContainer">
+                <argument type="service" id="service_container"/>
+            </call>
+        </service>
+
+        <service id="Coding9\AgentReady\Controller\A2aController" public="true">
+            <argument type="service" id="Coding9\AgentReady\Service\AgentConfig"/>
+            <argument type="service" id="Coding9\AgentReady\A2a\A2aServer"/>
             <call method="setContainer">
                 <argument type="service" id="service_container"/>
             </call>

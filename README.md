@@ -28,7 +28,9 @@ shop starts speaking the protocols agents already understand.
 | OpenID Connect discovery | [OIDC](https://openid.net/specs/openid-connect-discovery-1_0.html) | `/.well-known/openid-configuration` |
 | Protected resource metadata | [RFC 9728](https://www.rfc-editor.org/rfc/rfc9728) | `/.well-known/oauth-protected-resource` |
 | MCP Server Card | [SEP-1649](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2127) | `/.well-known/mcp/server-card.json` |
+| **MCP server runtime** | [modelcontextprotocol.io](https://modelcontextprotocol.io/) | `POST /mcp` (JSON-RPC: `initialize`, `tools/list`, `tools/call`) |
 | A2A Agent Card | [a2a-protocol.org](https://a2a-protocol.org/latest/specification/) | `/.well-known/agent-card.json` |
+| **A2A server runtime** | [a2a-protocol.org](https://a2a-protocol.org/latest/specification/) | `POST /a2a` (JSON-RPC: `message/send`) |
 | Agent Skills index | [agent-skills-discovery-rfc](https://github.com/cloudflare/agent-skills-discovery-rfc) | `/.well-known/agent-skills/index.json` |
 | WebMCP | [webmachinelearning/webmcp](https://webmachinelearning.github.io/webmcp/) | `navigator.modelContext.provideContext()` |
 | llms.txt | [llmstxt.org](https://llmstxt.org/) | `/llms.txt`, `/llms-full.txt` |
@@ -134,6 +136,35 @@ Browsers (which prefer `text/html`) get the original HTML untouched. The
 conversion is performed by the dependency-free `HtmlToMarkdownConverter`,
 which also strips noise (`<script>`, `<nav>`, `<footer>`, cookie banners…).
 
+#### Structured product header on PDPs
+
+On `frontend.detail.*` routes the subscriber additionally extracts the
+Schema.org `Product` and `BreadcrumbList` JSON-LD blocks Shopware emits
+out of the box and prepends a compact buying-decision summary:
+
+```markdown
+# Vintage Sneaker
+
+> Shoes › Sneakers
+
+| Field | Value |
+| --- | --- |
+| SKU | SW-001 |
+| Brand | Coding9 |
+| Price | 99.95 EUR |
+| Availability | in stock |
+| URL | https://shop.example/sneaker |
+
+![Vintage Sneaker](https://shop.example/media/sneaker.jpg)
+
+## Description
+
+A very cool sneaker.
+```
+
+Token-budgeted assistants can stop at the table; the generic body still
+follows for agents that want the full marketing copy.
+
 ### `robots.txt`
 
 `RobotsTxtController` serves a robots file with Content-Signal directives:
@@ -164,6 +195,88 @@ Sitemap: /sitemap.xml
 - `agent-card.json` — A2A agent description with skills
 - `agent-skills/index.json` — index pointing at `/SKILL.md` documents whose
   SHA-256 digests are computed at response time, so they always match
+
+### MCP server runtime (`POST /mcp`)
+
+The plugin hosts a real Model Context Protocol JSON-RPC 2.0 endpoint that
+agent hosts (Claude Desktop, Cursor, OpenAI Agents SDK, …) can plug in to
+directly. It implements:
+
+  - `initialize` — `serverInfo`, protocolVersion, `capabilities.tools`
+  - `tools/list` — eight tools described below
+  - `tools/call` — validates arguments and runs the matching skill against
+    Shopware's Store-API in-process, returning the trimmed result
+  - `ping`, `notifications/*` — accepted, no-op
+
+| Tool | Purpose | Output |
+| --- | --- | --- |
+| `search-products` | search the catalog by keyword | `{total, products: [{id, name, price, available, url, image}]}` |
+| `get-product` | full product detail | `{id, name, description, price, stock, available, url, image}` |
+| `create-context` | mint a fresh anonymous cart session | `{contextToken}` |
+| `get-cart` | read the cart owned by `contextToken` | `{lineItems, price, currency}` |
+| `manage-cart` | `add` / `update` / `remove` line items | updated cart |
+| `customer-login` | authenticate the cart session as an existing customer | `{contextToken, loggedIn}` |
+| `customer-logout` | drop customer auth, invalidate the token | `{loggedOut}` |
+| `place-order` | convert the (authenticated) cart into an order | `{orderId, orderNumber, amountTotal, stateMachineState, deepLinkCode}` |
+
+#### End-to-end purchase flow an agent can run
+
+```
+1. create-context        → contextToken
+2. search-products       → product UUIDs
+3. manage-cart (add)     → updated cart
+4. customer-login        → contextToken (authenticated)
+5. place-order           → orderNumber
+6. (out-of-skill) POST /store-api/handle-payment to drive the configured payment handler
+```
+
+Skill execution is in-process: the plugin issues a Symfony `SUB_REQUEST`
+through the kernel against `/store-api/...`, so all standard Shopware
+middleware (sales-channel resolution, cart hydration, customer
+authentication, rate limiting…) applies. The `sw-access-key` is resolved
+automatically from the sales channel that handled the inbound `/mcp`
+request.
+
+> ⚠️ **Security note on `customer-login`**
+>
+> Passwords flow through the agent host. Only point trusted MCP/A2A
+> clients at this endpoint, and prefer dedicated "agent buyer" customer
+> accounts (with order limits configured in the Shopware admin) over a
+> human customer's primary credentials.
+
+#### Hardening knobs (Plugin admin → *Hardening* + *Skill toggles*)
+
+The plugin ships safe defaults for development and exposes three knobs
+operators can tighten before going live:
+
+  * **Per-skill toggles** — every skill (`search-products`, `get-product`,
+    `create-context`, `get-cart`, `manage-cart`, `customer-login`,
+    `customer-logout`, `place-order`) can be individually disabled. A
+    disabled skill is hidden from `tools/list`, the agent-card.json and
+    the agent-skills index, and `tools/call` returns method-not-found
+    instead of executing it. Read-only catalog deployments can switch
+    everything except `search-products` + `get-product` off.
+  * **`placeOrderMaxAmount`** — server-side cap, enforced in
+    `SkillExecutor`. Before placing an order the executor fetches
+    `/store-api/checkout/cart`, compares `price.totalPrice` to the cap,
+    and refuses with `403 order_amount_exceeds_limit` if exceeded. Use
+    this even when you trust the customer account — it's the cheapest
+    safety net for an out-of-control agent.
+  * **`corsAllowedOrigins`** — the `/mcp` and `/a2a` endpoints emit
+    `Access-Control-Allow-Origin` only when the request's `Origin` is on
+    this allowlist. **The default is empty**, so no browser tab can
+    cross-origin POST credentials to your shop. Server-to-server agent
+    hosts (Claude Desktop, Cursor, OpenAI Agents SDK) don't send
+    `Origin` and don't need CORS. Add `https://claude.ai` or similar
+    explicitly if you do want browser hosts; use `*` only for local
+    development.
+
+### A2A server runtime (`POST /a2a`)
+
+JSON-RPC `message/send` shares the same `SkillExecutor` as the MCP server,
+so both protocols expose identical capabilities. The agent submits a
+`data` part with `{skill, arguments}`; the response is an `agent` Message
+whose part carries the trimmed Store-API result.
 
 ### WebMCP
 
@@ -212,6 +325,20 @@ curl -s https://your-shop.example/.well-known/api-catalog | jq
 curl -s https://your-shop.example/.well-known/agent-card.json | jq
 curl -s https://your-shop.example/.well-known/mcp/server-card.json | jq
 curl -s https://your-shop.example/.well-known/agent-skills/index.json | jq
+
+# Hit the MCP server end-to-end:
+curl -s https://your-shop.example/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | jq
+
+curl -s https://your-shop.example/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search-products","arguments":{"query":"shoes"}}}' | jq
+
+# A2A:
+curl -s https://your-shop.example/a2a \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"message/send","params":{"message":{"parts":[{"kind":"data","data":{"skill":"search-products","arguments":{"query":"shoes"}}}]}}}' | jq
 ```
 
 Then submit your domain at <https://isitagentready.com> — every check should

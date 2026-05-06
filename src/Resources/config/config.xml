@@ -170,4 +170,95 @@
             <defaultValue>true</defaultValue>
         </input-field>
     </card>
+
+    <card>
+        <title>Agent runtime endpoints</title>
+        <title lang="de-DE">Agent-Runtime-Endpunkte</title>
+
+        <input-field type="bool">
+            <name>enableMcpServer</name>
+            <label>Host the MCP JSON-RPC server at /mcp</label>
+            <label lang="de-DE">MCP-JSON-RPC-Server unter /mcp betreiben</label>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>enableA2aServer</name>
+            <label>Host the A2A JSON-RPC server at /a2a</label>
+            <label lang="de-DE">A2A-JSON-RPC-Server unter /a2a betreiben</label>
+            <defaultValue>true</defaultValue>
+        </input-field>
+    </card>
+
+    <card>
+        <title>Skill toggles</title>
+        <title lang="de-DE">Skill-Schalter</title>
+
+        <input-field type="bool">
+            <name>enableSkill_search_products</name>
+            <label>Expose skill: search-products</label>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>enableSkill_get_product</name>
+            <label>Expose skill: get-product</label>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>enableSkill_create_context</name>
+            <label>Expose skill: create-context</label>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>enableSkill_get_cart</name>
+            <label>Expose skill: get-cart</label>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>enableSkill_manage_cart</name>
+            <label>Expose skill: manage-cart</label>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>enableSkill_customer_login</name>
+            <label>Expose skill: customer-login (passwords flow through the agent host — disable if not needed)</label>
+            <label lang="de-DE">Skill freischalten: customer-login (Passwörter fließen über den Agent-Host — deaktivieren wenn nicht benötigt)</label>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>enableSkill_customer_logout</name>
+            <label>Expose skill: customer-logout</label>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>enableSkill_place_order</name>
+            <label>Expose skill: place-order (commits real orders — review limits below first)</label>
+            <label lang="de-DE">Skill freischalten: place-order (löst echte Bestellungen aus — Limits unten prüfen)</label>
+            <defaultValue>true</defaultValue>
+        </input-field>
+    </card>
+
+    <card>
+        <title>Hardening</title>
+        <title lang="de-DE">Härtung</title>
+
+        <input-field type="text">
+            <name>placeOrderMaxAmount</name>
+            <label>Maximum order amount the place-order skill is allowed to commit (in main currency units, e.g. 250.0 = 250 EUR/USD/...). Empty or 0 = unlimited.</label>
+            <label lang="de-DE">Maximaler Bestellwert für den place-order-Skill (in Haupt-Währungseinheit, z.B. 250.0 = 250 EUR). Leer oder 0 = kein Limit.</label>
+        </input-field>
+
+        <input-field type="textarea">
+            <name>corsAllowedOrigins</name>
+            <label>CORS allow-list for /mcp and /a2a (comma- or newline-separated origins, e.g. https://claude.ai). Empty = no CORS header (safest, server-side agent hosts don't need it). Use "*" only for development.</label>
+            <label lang="de-DE">CORS-Allowlist für /mcp und /a2a (kommagetrennt oder eine Origin pro Zeile, z.B. https://claude.ai). Leer = kein CORS-Header (sicherste Einstellung, server-seitige Agent-Hosts brauchen keine). "*" nur für die Entwicklung.</label>
+        </input-field>
+    </card>
 </config>

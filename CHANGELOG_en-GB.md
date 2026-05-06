@@ -1,3 +1,65 @@
+# 0.1.0
+
+First production-ready release. The plugin moves from "discovery-only
+showcase" to a real plug-and-play MCP/A2A server with a hardened skill
+surface for AI-agent commerce on Shopware 6.
+
+**MCP / A2A runtime endpoints**
+
+- `POST /mcp` — JSON-RPC 2.0 server implementing `initialize`,
+  `tools/list`, `tools/call`, `ping` and notifications. Supports batched
+  requests.
+- `POST /a2a` — A2A `message/send` runtime sharing the same skill set.
+- Both are **plug-and-play** for Claude Desktop, Cursor and the OpenAI
+  Agents SDK: configure the URL and the agent host can immediately
+  search products, manage carts, log customers in and place orders.
+
+**Skill set (real Store-API proxy, not dispatch instructions)**
+
+- `search-products`, `get-product` (read-only catalog)
+- `create-context`, `get-cart`, `manage-cart` (cart sessions)
+- `customer-login`, `customer-logout` (auth)
+- `place-order` (commits real orders)
+
+Skill execution runs in-process via Symfony `SUB_REQUEST` against
+`/store-api/...`, so all standard Shopware middleware (sales-channel
+resolution, cart hydration, rate limiting, customer auth) applies.
+The `sw-access-key` is resolved automatically from the resolved sales
+channel — operators don't have to wire it through.
+
+**Markdown enrichment for product detail pages**
+
+`MarkdownNegotiationSubscriber` now extracts Schema.org `Product`,
+`Offer` and `BreadcrumbList` JSON-LD from PDPs and prepends a compact
+buying-decision header (name, breadcrumb, SKU, brand, price,
+availability, image, description) to the generic HTML→Markdown body.
+
+**Hardening (new admin cards)**
+
+- *Skill toggles* — every skill can be individually disabled. Read-only
+  catalog deployments can keep only `search-products` + `get-product`.
+- `placeOrderMaxAmount` — server-side cap enforced in `SkillExecutor`.
+  Before placing an order the executor fetches the cart, compares
+  `totalPrice` to the cap, and returns `403 order_amount_exceeds_limit`
+  if exceeded.
+- `corsAllowedOrigins` — `/mcp` and `/a2a` no longer emit
+  `Access-Control-Allow-Origin: *` unconditionally. Default is empty
+  (no CORS header, safest for server-to-server agent hosts). Operators
+  add explicit origins (e.g. `https://claude.ai`) for browser-based
+  hosts, or `*` for local development only.
+
+**Removed**
+
+- Dynamic Client Registration stub (`POST /api/oauth/register`). Always
+  returned 501; brought no value. `registration_endpoint` removed from
+  `oauth-authorization-server` metadata.
+
+**Tests**
+
+- 133 PHPUnit tests, decoupled from Shopware via the `StoreApiClient`
+  and `SalesChannelKeyResolver` interfaces — runs in milliseconds.
+- PHPStan clean.
+
 # 0.0.5
 
 Spec-compliance fixes for robots.txt and MCP server card.
