@@ -107,10 +107,6 @@ class WellKnownController extends AbstractController
             'service_documentation' => 'https://developer.shopware.com/docs/guides/integrations-api/general-concepts/authentication.html',
         ];
 
-        if ($this->config->isDcrEnabled($this->salesChannelId($request))) {
-            $payload['registration_endpoint'] = $base . '/api/oauth/register';
-        }
-
         return $this->jsonWithType($payload, 'application/json');
     }
 

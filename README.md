@@ -27,7 +27,6 @@ shop starts speaking the protocols agents already understand.
 | OAuth 2.0 discovery | [RFC 8414](https://www.rfc-editor.org/rfc/rfc8414) | `/.well-known/oauth-authorization-server` |
 | OpenID Connect discovery | [OIDC](https://openid.net/specs/openid-connect-discovery-1_0.html) | `/.well-known/openid-configuration` |
 | Protected resource metadata | [RFC 9728](https://www.rfc-editor.org/rfc/rfc9728) | `/.well-known/oauth-protected-resource` |
-| Dynamic Client Registration | [RFC 7591](https://www.rfc-editor.org/rfc/rfc7591) | `POST /api/oauth/register` (honest stub) |
 | MCP Server Card | [SEP-1649](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2127) | `/.well-known/mcp/server-card.json` |
 | **MCP server runtime** | [modelcontextprotocol.io](https://modelcontextprotocol.io/) | `POST /mcp` (JSON-RPC: `initialize`, `tools/list`, `tools/call`) |
 | A2A Agent Card | [a2a-protocol.org](https://a2a-protocol.org/latest/specification/) | `/.well-known/agent-card.json` |
@@ -199,43 +198,37 @@ Sitemap: /sitemap.xml
 
 ### MCP server runtime (`POST /mcp`)
 
-The plugin hosts a real Model Context Protocol JSON-RPC 2.0 endpoint. It
-implements `initialize`, `tools/list` and `tools/call` for four tools whose
-input schemas come from `Coding9\AgentReady\Skill\SkillRegistry`:
-`search-products`, `get-product`, `manage-cart`, `place-order`.
+The plugin hosts a real Model Context Protocol JSON-RPC 2.0 endpoint that
+agent hosts (Claude Desktop, Cursor, OpenAI Agents SDK, …) can plug in to
+directly. It implements:
 
-`tools/call` returns a structured **dispatch envelope** describing the
-Store API request the agent (or its host) should issue:
+  - `initialize` — `serverInfo`, protocolVersion, `capabilities.tools`
+  - `tools/list` — five tools described below
+  - `tools/call` — validates arguments and runs the matching skill against
+    Shopware's Store-API in-process, returning the trimmed result
+  - `ping`, `notifications/*` — accepted, no-op
 
-```json
-{
-  "kind": "http-request",
-  "method": "POST",
-  "path": "/store-api/search",
-  "headers": {"sw-access-key": "<...>"},
-  "body": {"search": "shoes", "limit": 24}
-}
-```
+| Tool | Purpose | Output |
+| --- | --- | --- |
+| `search-products` | search the catalog by keyword | `{total, products: [{id, name, price, available, url, image}]}` |
+| `get-product` | full product detail | `{id, name, description, price, stock, available, url, image}` |
+| `create-context` | mint a fresh anonymous cart session | `{contextToken}` |
+| `get-cart` | read the cart owned by `contextToken` | `{lineItems, price, currency}` |
+| `manage-cart` | `add` / `update` / `remove` line items | updated cart |
 
-The plugin deliberately does **not** proxy Store API calls — Shopware
-already serves them, and keeping authorization and execution out of the
-MCP server keeps the surface small, auditable and decoupled from the
-Shopware container.
+Skill execution is in-process: the plugin issues a Symfony `SUB_REQUEST`
+through the kernel against `/store-api/...`, so all standard Shopware
+middleware (sales-channel resolution, cart hydration, rate limiting…)
+applies. The `sw-access-key` is resolved automatically from the sales
+channel that handled the inbound `/mcp` request — operators don't have
+to wire it through.
 
 ### A2A server runtime (`POST /a2a`)
 
-JSON-RPC `message/send` re-uses the same `SkillRegistry`, so MCP and A2A
-clients see identical capabilities. The agent submits a `data` part with
-`{skill, arguments}`; the response is an `agent` Message whose part carries
-the dispatch envelope.
-
-### Dynamic Client Registration (`POST /api/oauth/register`)
-
-RFC 7591. Shopware doesn't yet support automated client registration;
-integrations are created in the admin. The endpoint returns a structured
-`501 not_supported` with a doc link, advertises itself via
-`registration_endpoint` in the OAuth metadata, and is the natural extension
-point once Shopware ships native DCR.
+JSON-RPC `message/send` shares the same `SkillExecutor` as the MCP server,
+so both protocols expose identical capabilities. The agent submits a
+`data` part with `{skill, arguments}`; the response is an `agent` Message
+whose part carries the trimmed Store-API result.
 
 ### WebMCP
 

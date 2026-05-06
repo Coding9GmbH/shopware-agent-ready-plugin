@@ -144,9 +144,4 @@ class AgentConfig
     {
         return $this->bool('enableA2aServer', true, $salesChannelId);
     }
-
-    public function isDcrEnabled(?string $salesChannelId = null): bool
-    {
-        return $this->bool('enableDcr', true, $salesChannelId);
-    }
 }

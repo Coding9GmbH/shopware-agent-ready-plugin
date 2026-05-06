@@ -5,17 +5,16 @@ namespace Coding9\AgentReady\Skill;
 /**
  * One agent-callable skill exposed via MCP, A2A and the agent-skills index.
  *
- * The dispatcher returns a structured "next action" envelope rather than
- * proxying the Store API itself: the plugin's job is to make Shopware
- * agent-discoverable, not to re-implement the Store API. Agents (or an
- * upstream MCP host) execute the returned http-request envelope themselves.
+ * Skills are pure metadata: id, human description, JSON-Schema input
+ * descriptor and a Markdown body. Execution is the responsibility of
+ * {@see SkillExecutor}, which dispatches based on the skill id and proxies
+ * the call to Shopware's Store API in-process.
  */
 final class Skill
 {
     /**
-     * @param array<string, mixed>             $inputSchema JSON Schema (draft 2020-12) for arguments.
-     * @param array<int, string>               $tags        A2A skill tags.
-     * @param \Closure(array<string, mixed>): array<string, mixed> $dispatch
+     * @param array<int, string>   $tags        A2A skill tags.
+     * @param array<string, mixed> $inputSchema JSON Schema (draft 2020-12) for arguments.
      */
     public function __construct(
         public readonly string $id,
@@ -24,28 +23,18 @@ final class Skill
         public readonly array $tags,
         public readonly array $inputSchema,
         public readonly string $body,
-        public readonly \Closure $dispatch,
     ) {
     }
 
     /**
-     * Validate input against the declared schema and run the dispatcher.
+     * Validate input against the declared schema. Returns the (possibly
+     * defaulted) argument array.
      *
      * @param array<string, mixed> $args
      * @return array<string, mixed>
      * @throws SkillInputException
      */
-    public function call(array $args): array
-    {
-        $this->validate($args);
-        return ($this->dispatch)($args);
-    }
-
-    /**
-     * @param array<string, mixed> $args
-     * @throws SkillInputException
-     */
-    private function validate(array $args): void
+    public function validate(array $args): array
     {
         $required = $this->inputSchema['required'] ?? [];
         foreach ($required as $key) {
@@ -66,6 +55,8 @@ final class Skill
             }
             $this->validateValue((string) $key, $value, $properties[$key]);
         }
+
+        return $args;
     }
 
     /** @param array<string, mixed> $schema */

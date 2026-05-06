@@ -8,23 +8,19 @@ use PHPUnit\Framework\TestCase;
 
 class SkillRegistryTest extends TestCase
 {
-    public function testRegistryExposesFourCanonicalSkills(): void
+    public function testRegistryExposesFiveCanonicalSkills(): void
     {
-        $registry = new SkillRegistry();
-        $ids = array_keys($registry->all());
+        $ids = array_keys((new SkillRegistry())->all());
 
         self::assertSame(
-            ['search-products', 'get-product', 'manage-cart', 'place-order'],
+            ['search-products', 'get-product', 'create-context', 'get-cart', 'manage-cart'],
             $ids
         );
     }
 
     public function testMcpToolListShape(): void
     {
-        $tools = (new SkillRegistry())->asMcpToolList();
-
-        self::assertNotEmpty($tools);
-        foreach ($tools as $tool) {
+        foreach ((new SkillRegistry())->asMcpToolList() as $tool) {
             self::assertArrayHasKey('name', $tool);
             self::assertArrayHasKey('description', $tool);
             self::assertArrayHasKey('inputSchema', $tool);
@@ -34,9 +30,7 @@ class SkillRegistryTest extends TestCase
 
     public function testA2aSkillListShape(): void
     {
-        $skills = (new SkillRegistry())->asA2aSkillList();
-
-        foreach ($skills as $skill) {
+        foreach ((new SkillRegistry())->asA2aSkillList() as $skill) {
             self::assertArrayHasKey('id', $skill);
             self::assertArrayHasKey('name', $skill);
             self::assertArrayHasKey('description', $skill);
@@ -45,103 +39,50 @@ class SkillRegistryTest extends TestCase
         }
     }
 
-    public function testSearchProductsDispatchProducesStoreApiEnvelope(): void
+    public function testValidateRejectsMissingRequired(): void
     {
         $skill = (new SkillRegistry())->get('search-products');
-        self::assertNotNull($skill);
-
-        $envelope = $skill->call(['query' => 'shoes', 'limit' => 10]);
-
-        self::assertSame('http-request', $envelope['kind']);
-        self::assertSame('POST', $envelope['method']);
-        self::assertSame('/store-api/search', $envelope['path']);
-        self::assertSame(['search' => 'shoes', 'limit' => 10], $envelope['body']);
-        self::assertArrayHasKey('sw-access-key', $envelope['headers']);
-    }
-
-    public function testSearchProductsRejectsMissingQuery(): void
-    {
-        $skill = (new SkillRegistry())->get('search-products');
-        self::assertNotNull($skill);
-
         $this->expectException(SkillInputException::class);
-        $skill->call([]);
+        $skill->validate([]);
     }
 
-    public function testSearchProductsRejectsLimitOverMaximum(): void
+    public function testValidateRejectsLimitOverMaximum(): void
     {
         $skill = (new SkillRegistry())->get('search-products');
-        self::assertNotNull($skill);
-
         $this->expectException(SkillInputException::class);
-        $skill->call(['query' => 'x', 'limit' => 999]);
+        $skill->validate(['query' => 'x', 'limit' => 999]);
     }
 
-    public function testGetProductRejectsInvalidUuid(): void
+    public function testValidateRejectsAdditionalProperties(): void
+    {
+        $skill = (new SkillRegistry())->get('search-products');
+        $this->expectException(SkillInputException::class);
+        $skill->validate(['query' => 'x', 'evil' => true]);
+    }
+
+    public function testGetProductAcceptsBothUuidFormats(): void
     {
         $skill = (new SkillRegistry())->get('get-product');
-        self::assertNotNull($skill);
-
+        $skill->validate(['productId' => str_repeat('a', 32)]);
+        $skill->validate(['productId' => 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee']);
         $this->expectException(SkillInputException::class);
-        $skill->call(['productId' => 'not-a-uuid']);
-    }
-
-    public function testGetProductAcceptsValidUuid(): void
-    {
-        $skill = (new SkillRegistry())->get('get-product');
-        self::assertNotNull($skill);
-
-        $envelope = $skill->call(['productId' => str_repeat('a', 32)]);
-        self::assertSame('/store-api/product/' . str_repeat('a', 32), $envelope['path']);
-    }
-
-    public function testManageCartDispatchSwitchesMethodAndBodyShape(): void
-    {
-        $skill = (new SkillRegistry())->get('manage-cart');
-        self::assertNotNull($skill);
-
-        $add = $skill->call([
-            'action' => 'add',
-            'productId' => str_repeat('b', 32),
-            'quantity' => 2,
-        ]);
-        self::assertSame('POST', $add['method']);
-        self::assertSame('/store-api/checkout/cart/line-item', $add['path']);
-        self::assertSame(2, $add['body']['items'][0]['quantity']);
-
-        $remove = $skill->call([
-            'action' => 'remove',
-            'productId' => str_repeat('b', 32),
-        ]);
-        self::assertSame('DELETE', $remove['method']);
-        self::assertSame([str_repeat('b', 32)], $remove['body']['ids']);
+        $skill->validate(['productId' => 'not-a-uuid']);
     }
 
     public function testManageCartRejectsInvalidAction(): void
     {
         $skill = (new SkillRegistry())->get('manage-cart');
-        self::assertNotNull($skill);
-
         $this->expectException(SkillInputException::class);
-        $skill->call(['action' => 'destroy', 'productId' => str_repeat('c', 32)]);
+        $skill->validate(['action' => 'destroy', 'contextToken' => 'tok']);
     }
 
-    public function testAdditionalPropertiesAreRejected(): void
-    {
-        $skill = (new SkillRegistry())->get('search-products');
-        self::assertNotNull($skill);
-
-        $this->expectException(SkillInputException::class);
-        $skill->call(['query' => 'ok', 'evil' => true]);
-    }
-
-    public function testSkillBodiesContainHowToExecuteSection(): void
+    public function testSkillBodiesContainOutputSection(): void
     {
         foreach ((new SkillRegistry())->all() as $skill) {
             self::assertStringContainsString(
-                '## How to execute',
+                '## Output',
                 $skill->body,
-                'skill ' . $skill->id . ' must document how to execute itself'
+                'skill ' . $skill->id . ' must document its output shape'
             );
         }
     }

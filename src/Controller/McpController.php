@@ -35,7 +35,8 @@ class McpController extends AbstractController
     )]
     public function dispatch(Request $request): Response
     {
-        if (!$this->config->isMcpServerEnabled($this->salesChannelId($request))) {
+        $sc = $this->salesChannelId($request);
+        if (!$this->config->isMcpServerEnabled($sc)) {
             return new Response('not found', 404, ['Content-Type' => 'text/plain']);
         }
 
@@ -51,7 +52,7 @@ class McpController extends AbstractController
                     $responses[] = $this->errorBody(null, -32600, 'invalid request');
                     continue;
                 }
-                $r = $this->server->handle($entry);
+                $r = $this->server->handle($entry, $sc);
                 if ($r !== null) {
                     $responses[] = $r;
                 }
@@ -62,7 +63,7 @@ class McpController extends AbstractController
             return $this->jsonResponse($responses);
         }
 
-        $response = $this->server->handle($payload);
+        $response = $this->server->handle($payload, $sc);
         if ($response === null) {
             return new Response('', 204);
         }

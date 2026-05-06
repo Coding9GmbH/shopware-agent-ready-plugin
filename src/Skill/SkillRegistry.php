@@ -5,27 +5,25 @@ namespace Coding9\AgentReady\Skill;
 /**
  * Single source of truth for the agent-callable skills exposed by this plugin.
  *
- * The same registry feeds three surfaces:
- *
+ * The same registry feeds:
  *   1. /.well-known/agent-skills/index.json      (Cloudflare agent-skills RFC)
  *   2. /.well-known/agent-card.json              (A2A specification)
  *   3. /mcp                                      (Model Context Protocol)
  *   4. /a2a                                      (A2A JSON-RPC runtime)
  *
- * Every skill carries:
- *  - a stable id
- *  - a human description
- *  - a JSON-Schema input descriptor
- *  - a Markdown body served at /.well-known/agent-skills/<id>/SKILL.md
- *  - a dispatcher closure that converts validated arguments into a
- *    structured "next action" envelope. The envelope tells the calling
- *    agent which Store API request to issue. We deliberately don't proxy
- *    Store API calls inside the plugin — Shopware already exposes those
- *    routes, and an MCP server that dispatches by description keeps the
- *    plugin small, framework-decoupled and easy to audit.
+ * Execution is delegated to {@see SkillExecutor} — skills here are pure
+ * metadata.
  */
 class SkillRegistry
 {
+    public const ID_SEARCH_PRODUCTS = 'search-products';
+    public const ID_GET_PRODUCT = 'get-product';
+    public const ID_CREATE_CONTEXT = 'create-context';
+    public const ID_GET_CART = 'get-cart';
+    public const ID_MANAGE_CART = 'manage-cart';
+
+    private const UUID_PATTERN = '^[a-f0-9]{32}$|^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$';
+
     /** @var array<string, Skill> */
     private array $skills;
 
@@ -84,9 +82,9 @@ class SkillRegistry
     {
         $skills = [
             new Skill(
-                id: 'search-products',
+                id: self::ID_SEARCH_PRODUCTS,
                 name: 'Search products',
-                description: 'Search the product catalog of the Shopware storefront by keyword.',
+                description: 'Search the storefront product catalog by free-text keyword. Returns matching products with name, price, availability and SEO URL.',
                 tags: ['search', 'catalog', 'products'],
                 inputSchema: [
                     'type' => 'object',
@@ -99,7 +97,7 @@ class SkillRegistry
                         ],
                         'limit' => [
                             'type' => 'integer',
-                            'description' => 'Maximum number of results (default 24, max 100).',
+                            'description' => 'Maximum number of results (1..100, default 24).',
                             'minimum' => 1,
                             'maximum' => 100,
                             'default' => 24,
@@ -110,68 +108,39 @@ class SkillRegistry
                 body: <<<'MD'
                 # Search products
 
-                Search the Shopware storefront catalog by free-text keyword.
+                Search the storefront catalog by keyword.
 
                 ## Input
 
                 ```json
-                {
-                  "query": "string (required, min 1)",
-                  "limit": "integer (1..100, default 24)"
-                }
+                {"query": "string (required)", "limit": "integer (1..100, default 24)"}
                 ```
-
-                ## How to execute
-
-                Issue a Store API request:
-
-                ```http
-                POST /store-api/search HTTP/1.1
-                Host: <shop-host>
-                Content-Type: application/json
-                sw-access-key: <SALES_CHANNEL_ACCESS_KEY>
-
-                {"search": "{{query}}", "limit": {{limit}}}
-                ```
-
-                ## Authentication
-
-                The Store API requires the sales channel `sw-access-key` header.
-                The key is found in the Shopware admin under
-                **Sales Channels → <name> → API access**.
 
                 ## Output
 
-                Returns a paginated list of products with `id`, `name`,
-                `productNumber`, `calculatedPrice`, `seoUrls`. Use
-                `seoUrls[0].pathInfo` to deep-link into the storefront.
-
-                ## Errors
-
-                | HTTP | Meaning |
-                | --- | --- |
-                | 401 | Missing or invalid `sw-access-key` |
-                | 400 | Empty / malformed query body |
+                ```json
+                {
+                  "total": 42,
+                  "products": [
+                    {
+                      "id": "...",
+                      "name": "...",
+                      "productNumber": "...",
+                      "price": {"amount": 99.95, "currency": "EUR"},
+                      "available": true,
+                      "url": "https://shop.example/p/...",
+                      "image": "https://shop.example/media/..."
+                    }
+                  ]
+                }
+                ```
 
                 MD,
-                dispatch: fn (array $args) => [
-                    'kind' => 'http-request',
-                    'method' => 'POST',
-                    'path' => '/store-api/search',
-                    'headers' => [
-                        'Content-Type' => 'application/json',
-                        'sw-access-key' => '<SALES_CHANNEL_ACCESS_KEY>',
-                    ],
-                    'body' => [
-                        'search' => $args['query'],
-                        'limit' => $args['limit'] ?? 24,
-                    ],
-                ],
             ),
             new Skill(
-                id: 'get-product',
-                name: 'Get product detail',
-                description: 'Fetch detailed information for one product by id.',
+                id: self::ID_GET_PRODUCT,
+                name: 'Get product',
+                description: 'Fetch detailed information for one product by its UUID.',
                 tags: ['catalog', 'products'],
                 inputSchema: [
                     'type' => 'object',
@@ -179,74 +148,132 @@ class SkillRegistry
                     'properties' => [
                         'productId' => [
                             'type' => 'string',
-                            'description' => 'The product UUID returned by search-products.',
-                            'pattern' => '^[a-f0-9]{32}$',
+                            'description' => 'Shopware product UUID (32-char hex or 36-char dashed).',
+                            'pattern' => self::UUID_PATTERN,
                         ],
                     ],
                     'additionalProperties' => false,
                 ],
                 body: <<<'MD'
-                # Get product detail
+                # Get product
 
-                Retrieve the full product record for one product by its UUID.
+                Retrieve full product detail.
 
                 ## Input
 
                 ```json
-                {"productId": "32-char hex Shopware UUID"}
-                ```
-
-                ## How to execute
-
-                ```http
-                POST /store-api/product/{{productId}} HTTP/1.1
-                Host: <shop-host>
-                Content-Type: application/json
-                sw-access-key: <SALES_CHANNEL_ACCESS_KEY>
-
-                {}
+                {"productId": "32-char hex or 36-char dashed Shopware UUID"}
                 ```
 
                 ## Output
 
-                A `product` object with name, description, calculatedPrice,
-                stock, media gallery and the canonical SEO URL.
+                ```json
+                {
+                  "id": "...",
+                  "name": "...",
+                  "productNumber": "...",
+                  "description": "...",
+                  "price": {"amount": 99.95, "currency": "EUR"},
+                  "stock": 42,
+                  "available": true,
+                  "url": "...",
+                  "images": ["..."]
+                }
+                ```
+
                 MD,
-                dispatch: fn (array $args) => [
-                    'kind' => 'http-request',
-                    'method' => 'POST',
-                    'path' => '/store-api/product/' . $args['productId'],
-                    'headers' => [
-                        'Content-Type' => 'application/json',
-                        'sw-access-key' => '<SALES_CHANNEL_ACCESS_KEY>',
-                    ],
-                    'body' => new \stdClass(),
-                ],
             ),
             new Skill(
-                id: 'manage-cart',
+                id: self::ID_CREATE_CONTEXT,
+                name: 'Create cart session',
+                description: 'Create a fresh anonymous Shopware sales-channel context. Returns the contextToken needed by get-cart and manage-cart.',
+                tags: ['cart', 'session'],
+                inputSchema: [
+                    'type' => 'object',
+                    'properties' => new \stdClass(),
+                    'additionalProperties' => false,
+                ],
+                body: <<<'MD'
+                # Create cart session
+
+                Mint a fresh anonymous Shopware context. Pass the returned
+                `contextToken` to all subsequent cart operations to keep them
+                tied to the same cart.
+
+                ## Output
+
+                ```json
+                {"contextToken": "..."}
+                ```
+
+                MD,
+            ),
+            new Skill(
+                id: self::ID_GET_CART,
+                name: 'Get cart',
+                description: 'Return the current cart for the supplied contextToken.',
+                tags: ['cart'],
+                inputSchema: [
+                    'type' => 'object',
+                    'required' => ['contextToken'],
+                    'properties' => [
+                        'contextToken' => [
+                            'type' => 'string',
+                            'description' => 'Token returned by create-context (or sw-context-token header).',
+                            'minLength' => 4,
+                        ],
+                    ],
+                    'additionalProperties' => false,
+                ],
+                body: <<<'MD'
+                # Get cart
+
+                Read the cart owned by the given context token.
+
+                ## Output
+
+                ```json
+                {
+                  "lineItems": [{"productId": "...", "label": "...", "quantity": 1, "price": 99.95}],
+                  "price": {"netPrice": 84.0, "totalPrice": 99.95, "positionPrice": 99.95},
+                  "currency": "EUR"
+                }
+                ```
+
+                MD,
+            ),
+            new Skill(
+                id: self::ID_MANAGE_CART,
                 name: 'Manage cart',
-                description: 'Add, update or remove line items in the current shopping cart.',
+                description: 'Add, update or remove a line item in the cart owned by contextToken. Returns the updated cart.',
                 tags: ['cart', 'checkout'],
                 inputSchema: [
                     'type' => 'object',
-                    'required' => ['action', 'productId'],
+                    'required' => ['action', 'contextToken'],
                     'properties' => [
                         'action' => [
                             'type' => 'string',
                             'enum' => ['add', 'update', 'remove'],
-                            'description' => 'Cart operation to perform.',
+                        ],
+                        'contextToken' => [
+                            'type' => 'string',
+                            'minLength' => 4,
                         ],
                         'productId' => [
                             'type' => 'string',
-                            'description' => '32-char hex Shopware product UUID.',
-                            'pattern' => '^[a-f0-9]{32}$',
+                            'description' => 'Required for add/update.',
+                            'pattern' => self::UUID_PATTERN,
+                        ],
+                        'lineItemId' => [
+                            'type' => 'string',
+                            'description' => 'Required for remove (line item identifier from get-cart).',
+                            'pattern' => self::UUID_PATTERN,
                         ],
                         'quantity' => [
                             'type' => 'integer',
                             'minimum' => 1,
+                            'maximum' => 999,
                             'default' => 1,
-                            'description' => 'Required for add/update; ignored for remove.',
                         ],
                     ],
                     'additionalProperties' => false,
@@ -254,147 +281,25 @@ class SkillRegistry
                 body: <<<'MD'
                 # Manage cart
 
-                Add, update or remove line items in the current cart. The
-                Shopware cart is keyed by the `sw-context-token` header — keep
-                the same token across requests to operate on one cart.
+                Mutate the cart for an existing context token.
 
                 ## Input
 
                 ```json
                 {
                   "action": "add | update | remove",
-                  "productId": "32-char hex Shopware UUID",
-                  "quantity": "integer >= 1 (add/update only)"
+                  "contextToken": "...",
+                  "productId": "(add/update only) Shopware UUID",
+                  "lineItemId": "(remove only) line item id from get-cart",
+                  "quantity": "1..999 (add/update only)"
                 }
-                ```
-
-                ## How to execute
-
-                | Action | Method | Path |
-                | --- | --- | --- |
-                | add | POST | /store-api/checkout/cart/line-item |
-                | update | PATCH | /store-api/checkout/cart/line-item |
-                | remove | DELETE | /store-api/checkout/cart/line-item |
-
-                Body shape for add/update:
-
-                ```json
-                {"items":[{"type":"product","referencedId":"{{productId}}","quantity":{{quantity}}}]}
-                ```
-
-                Body shape for remove:
-
-                ```json
-                {"ids":["{{productId}}"]}
-                ```
-
-                ## Authentication
-
-                Requires `sw-access-key` and `sw-context-token` headers. If you
-                don't have a context token yet, call
-                `POST /store-api/context` first; it returns one.
-
-                MD,
-                dispatch: function (array $args) {
-                    $action = (string) $args['action'];
-                    $productId = $args['productId'];
-                    $quantity = $args['quantity'] ?? 1;
-
-                    $method = match ($action) {
-                        'add' => 'POST',
-                        'update' => 'PATCH',
-                        'remove' => 'DELETE',
-                        default => throw new \LogicException('action validated upstream: ' . $action),
-                    };
-
-                    $body = $action === 'remove'
-                        ? ['ids' => [$productId]]
-                        : ['items' => [[
-                            'type' => 'product',
-                            'referencedId' => $productId,
-                            'quantity' => $quantity,
-                        ]]];
-
-                    return [
-                        'kind' => 'http-request',
-                        'method' => $method,
-                        'path' => '/store-api/checkout/cart/line-item',
-                        'headers' => [
-                            'Content-Type' => 'application/json',
-                            'sw-access-key' => '<SALES_CHANNEL_ACCESS_KEY>',
-                            'sw-context-token' => '<CONTEXT_TOKEN>',
-                        ],
-                        'body' => $body,
-                    ];
-                },
-            ),
-            new Skill(
-                id: 'place-order',
-                name: 'Place order',
-                description: 'Place an order for the items currently in the cart.',
-                tags: ['checkout', 'orders'],
-                inputSchema: [
-                    'type' => 'object',
-                    'properties' => [
-                        'tos' => [
-                            'type' => 'boolean',
-                            'description' => 'Confirms the customer accepts the terms of service.',
-                            'default' => true,
-                        ],
-                    ],
-                    'additionalProperties' => false,
-                ],
-                body: <<<'MD'
-                # Place order
-
-                Convert the current cart into an order.
-
-                ## Preconditions
-
-                1. A logged-in customer (call `POST /store-api/account/login`
-                   to obtain a `sw-context-token`) **or** a guest checkout
-                   established via `POST /store-api/account/register?guest=1`.
-                2. A cart with at least one line item.
-                3. A selected payment method and shipping method on the
-                   sales-channel context.
-
-                ## How to execute
-
-                ```http
-                POST /store-api/checkout/order HTTP/1.1
-                Host: <shop-host>
-                Content-Type: application/json
-                sw-access-key: <SALES_CHANNEL_ACCESS_KEY>
-                sw-context-token: <CONTEXT_TOKEN>
-
-                {"tos": true}
                 ```
 
                 ## Output
 
-                Returns the created `order` with `id`, `orderNumber`,
-                `amountTotal`, `stateMachineState`, and the customer-facing
-                `deepLinkCode`.
+                Same shape as get-cart — the updated cart.
 
-                ## Payment
-
-                Once the order is created, follow up with
-                `POST /store-api/handle-payment` to drive the configured
-                payment handler.
                 MD,
-                dispatch: fn (array $args) => [
-                    'kind' => 'http-request',
-                    'method' => 'POST',
-                    'path' => '/store-api/checkout/order',
-                    'headers' => [
-                        'Content-Type' => 'application/json',
-                        'sw-access-key' => '<SALES_CHANNEL_ACCESS_KEY>',
-                        'sw-context-token' => '<CONTEXT_TOKEN>',
-                    ],
-                    'body' => [
-                        'tos' => $args['tos'] ?? true,
-                    ],
-                ],
             ),
         ];
 

@@ -2,30 +2,23 @@
 
 namespace Coding9\AgentReady\Mcp;
 
+use Coding9\AgentReady\Skill\SkillExecutor;
 use Coding9\AgentReady\Skill\SkillInputException;
 use Coding9\AgentReady\Skill\SkillRegistry;
 
 /**
  * Minimal Model Context Protocol JSON-RPC dispatcher.
  *
- * Implements the subset of MCP that an agent host needs to discover and
- * invoke skills:
+ * Implements the subset of MCP an agent host needs to discover and invoke
+ * skills:
  *
- *  - initialize          → returns serverInfo + protocolVersion + capabilities
- *  - tools/list          → returns the declared skills with JSON Schema input
- *  - tools/call          → validates arguments, runs the skill dispatcher,
- *                          returns a single text content block carrying the
- *                          structured "next action" envelope as JSON.
- *
- * Notification messages (no `id`) are accepted and acknowledged with no
- * response body. Anything else returns a JSON-RPC method-not-found error.
- *
- * Scope:
- *  - We don't proxy Store API calls. The plugin's job is discovery + dispatch
- *    description; agents (or the upstream MCP host) execute the returned
- *    request envelope themselves. This keeps the plugin small and means
- *    tool authorization/auditing happens where it belongs (the agent host
- *    or Store API access-key policy).
+ *  - initialize          → serverInfo + protocolVersion + capabilities.tools
+ *  - tools/list          → declared skills with JSON Schema input
+ *  - tools/call          → validates arguments, runs the skill via
+ *                          {@see SkillExecutor}, returns a structured
+ *                          response with the trimmed Store-API result.
+ *  - ping                → health-check
+ *  - notifications/*     → accepted, no response
  */
 class McpServer
 {
@@ -33,18 +26,17 @@ class McpServer
 
     public function __construct(
         private readonly SkillRegistry $registry,
+        private readonly SkillExecutor $executor,
         private readonly string $serverName = 'shopware-storefront',
         private readonly string $serverVersion = '1.0.0',
     ) {
     }
 
     /**
-     * Process a single JSON-RPC request envelope.
-     *
      * @param array<string, mixed> $request
-     * @return array<string, mixed>|null  Null when the request is a notification.
+     * @return array<string, mixed>|null Null when the request is a notification.
      */
-    public function handle(array $request): ?array
+    public function handle(array $request, ?string $salesChannelId = null): ?array
     {
         $id = $request['id'] ?? null;
         $method = isset($request['method']) && is_string($request['method']) ? $request['method'] : '';
@@ -63,9 +55,9 @@ class McpServer
             $result = match ($method) {
                 'initialize' => $this->initialize(),
                 'tools/list' => $this->toolsList(),
-                'tools/call' => $this->toolsCall($params),
+                'tools/call' => $this->toolsCall($params, $salesChannelId),
                 'ping' => new \stdClass(),
-                'notifications/initialized' => null,
+                'notifications/initialized', 'notifications/cancelled' => null,
                 default => throw new McpMethodNotFoundException($method),
             };
         } catch (McpMethodNotFoundException $e) {
@@ -123,7 +115,7 @@ class McpServer
      * @param array<string, mixed> $params
      * @return array<string, mixed>
      */
-    private function toolsCall(array $params): array
+    private function toolsCall(array $params, ?string $salesChannelId): array
     {
         $name = $params['name'] ?? null;
         if (!is_string($name) || $name === '') {
@@ -140,17 +132,13 @@ class McpServer
             throw new SkillInputException('arguments must be an object');
         }
 
-        $envelope = $skill->call($arguments);
+        $result = $this->executor->execute($skill, $arguments, $salesChannelId);
+        $text = (string) json_encode($result->data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 
         return [
-            'content' => [
-                [
-                    'type' => 'text',
-                    'text' => json_encode($envelope, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
-                ],
-            ],
-            'structuredContent' => $envelope,
-            'isError' => false,
+            'content' => [['type' => 'text', 'text' => $text]],
+            'structuredContent' => $result->data,
+            'isError' => $result->isError,
         ];
     }
 

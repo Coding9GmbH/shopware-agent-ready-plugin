@@ -27,7 +27,8 @@ class A2aController extends AbstractController
     )]
     public function dispatch(Request $request): Response
     {
-        if (!$this->config->isA2aServerEnabled($this->salesChannelId($request))) {
+        $sc = $this->salesChannelId($request);
+        if (!$this->config->isA2aServerEnabled($sc)) {
             return new Response('not found', 404, ['Content-Type' => 'text/plain']);
         }
 
@@ -40,7 +41,7 @@ class A2aController extends AbstractController
             ]);
         }
 
-        $response = new JsonResponse($this->server->handle($payload));
+        $response = new JsonResponse($this->server->handle($payload, $sc));
         $response->headers->set('Cache-Control', 'no-store');
         $response->headers->set('Access-Control-Allow-Origin', '*');
         return $response;

@@ -188,12 +188,5 @@
             <label lang="de-DE">A2A-JSON-RPC-Server unter /a2a betreiben</label>
             <defaultValue>true</defaultValue>
         </input-field>
-
-        <input-field type="bool">
-            <name>enableDcr</name>
-            <label>Advertise /api/oauth/register (RFC 7591 Dynamic Client Registration)</label>
-            <label lang="de-DE">/api/oauth/register (RFC 7591) anbieten</label>
-            <defaultValue>true</defaultValue>
-        </input-field>
     </card>
 </config>
