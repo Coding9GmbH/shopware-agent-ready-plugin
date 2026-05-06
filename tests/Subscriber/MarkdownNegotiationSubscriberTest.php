@@ -74,10 +74,57 @@ class MarkdownNegotiationSubscriberTest extends TestCase
     {
         $request = Request::create('/');
         $request->headers->set('Accept', 'text/markdown');
+        $request->attributes->set('_route', 'frontend.home.page');
         $response = new Response('<html><body><main><p>x</p></main></body></html>', 200, ['Content-Type' => 'text/html']);
         $event = new ResponseEvent($this->kernel(), $request, HttpKernelInterface::SUB_REQUEST, $response);
         $this->subscriber()->onResponse($event);
         self::assertStringStartsWith('text/html', (string) $event->getResponse()->headers->get('Content-Type'));
+    }
+
+    public function testTransactionalRoutesAreNotConverted(): void
+    {
+        // /account, /checkout, /widgets must keep HTML even if an automated
+        // tool sends Accept: text/markdown — converting them would break
+        // the storefront UI.
+        foreach (['frontend.account.home.page', 'frontend.checkout.confirm.page', 'widgets.checkout.info'] as $route) {
+            $event = $this->event('text/markdown', '<html><body><main><p>ok</p></main></body></html>', $route);
+            $this->subscriber()->onResponse($event);
+            self::assertStringStartsWith(
+                'text/html',
+                (string) $event->getResponse()->headers->get('Content-Type'),
+                "$route should not be converted"
+            );
+        }
+    }
+
+    public function testStarStarAcceptKeepsHtml(): void
+    {
+        // Browsers and curl send `*/*`. Markdown is selected only on an explicit
+        // text/markdown opt-in.
+        $event = $this->event('*/*', '<html><body><main><p>x</p></main></body></html>');
+        $this->subscriber()->onResponse($event);
+        self::assertStringStartsWith('text/html', (string) $event->getResponse()->headers->get('Content-Type'));
+    }
+
+    public function testStaleContentLengthAndEncodingAreRemoved(): void
+    {
+        $request = Request::create('/');
+        $request->headers->set('Accept', 'text/markdown');
+        $request->attributes->set('_route', 'frontend.home.page');
+        $response = new Response(
+            '<html><body><main><h1>X</h1></main></body></html>',
+            200,
+            [
+                'Content-Type' => 'text/html; charset=UTF-8',
+                'Content-Length' => '999',
+                'Content-Encoding' => 'gzip',
+            ]
+        );
+        $event = new ResponseEvent($this->kernel(), $request, HttpKernelInterface::MAIN_REQUEST, $response);
+        $this->subscriber()->onResponse($event);
+
+        self::assertNull($event->getResponse()->headers->get('Content-Length'));
+        self::assertNull($event->getResponse()->headers->get('Content-Encoding'));
     }
 
     private function subscriber(): MarkdownNegotiationSubscriber
@@ -90,10 +137,11 @@ class MarkdownNegotiationSubscriberTest extends TestCase
         return new MarkdownNegotiationSubscriber(new AgentConfig($reader), new HtmlToMarkdownConverter());
     }
 
-    private function event(string $accept, string $body): ResponseEvent
+    private function event(string $accept, string $body, string $route = 'frontend.home.page'): ResponseEvent
     {
         $request = Request::create('/');
         $request->headers->set('Accept', $accept);
+        $request->attributes->set('_route', $route);
         $response = new Response($body, 200, ['Content-Type' => 'text/html; charset=UTF-8']);
         return new ResponseEvent($this->kernel(), $request, HttpKernelInterface::MAIN_REQUEST, $response);
     }

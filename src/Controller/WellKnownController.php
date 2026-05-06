@@ -13,15 +13,20 @@ use Symfony\Component\Routing\Attribute\Route;
  * Serves /.well-known/* endpoints used by AI agents, MCP and A2A clients to
  * discover capabilities of the Shopware storefront.
  *
- * All endpoints honour the plugin configuration, so a shop owner can disable
- * any single endpoint independently.
+ * Each endpoint can be toggled independently via plugin configuration.
  */
 #[Route(defaults: ['_routeScope' => ['storefront']])]
 class WellKnownController extends AbstractController
 {
-    public function __construct(
-        private readonly AgentConfig $config,
-    ) {
+    /** Single source of truth for the canonical SKILL.md bodies. */
+    private const SKILL_BODIES = [
+        'search-products' => "# Search products\n\nUse the Store API endpoint `POST /store-api/search` to look up products by keyword. Required input: `search` string.\n",
+        'place-order'     => "# Place order\n\n1. Build a cart via `POST /store-api/checkout/cart`.\n2. Add items via `POST /store-api/checkout/cart/line-item`.\n3. Place the order via `POST /store-api/checkout/order`.\n",
+        'manage-cart'     => "# Manage cart\n\nUse `/store-api/checkout/cart/line-item` (POST/PATCH/DELETE) to add, update or remove line items in the current cart.\n",
+    ];
+
+    public function __construct(private readonly AgentConfig $config)
+    {
     }
 
     #[Route(
@@ -42,7 +47,7 @@ class WellKnownController extends AbstractController
             [
                 'anchor' => $base . '/store-api',
                 'service-desc' => [
-                    ['href' => 'https://github.com/shopware/shopware/blob/trunk/src/Core/Framework/Api/ApiDefinition/StoreApiDefinition.php'],
+                    ['href' => 'https://shopware.stoplight.io/api-reference/store-api'],
                 ],
                 'service-doc' => [
                     ['href' => 'https://shopware.stoplight.io/docs/store-api'],
@@ -68,6 +73,14 @@ class WellKnownController extends AbstractController
         return $this->jsonWithType(['linkset' => $linkset], 'application/linkset+json');
     }
 
+    /**
+     * RFC 8414 — OAuth 2.0 Authorization Server Metadata.
+     *
+     * Shopware does NOT expose an interactive authorization endpoint. The
+     * Admin / Store API uses the password, client_credentials and
+     * refresh_token grants directly against /api/oauth/token. We therefore
+     * publish only the fields that are actually true for Shopware.
+     */
     #[Route(
         path: '/.well-known/oauth-authorization-server',
         name: 'frontend.coding9.agent_ready.oauth_authorization_server',
@@ -84,9 +97,7 @@ class WellKnownController extends AbstractController
 
         $payload = [
             'issuer' => $base,
-            'authorization_endpoint' => $base . '/api/oauth/authorize',
             'token_endpoint' => $base . '/api/oauth/token',
-            'jwks_uri' => $base . '/api/oauth/jwks',
             'token_endpoint_auth_methods_supported' => [
                 'client_secret_basic',
                 'client_secret_post',
@@ -96,24 +107,11 @@ class WellKnownController extends AbstractController
                 'client_credentials',
                 'refresh_token',
             ],
-            'response_types_supported' => ['token'],
             'scopes_supported' => ['write', 'read'],
             'service_documentation' => 'https://developer.shopware.com/docs/guides/integrations-api/general-concepts/authentication.html',
         ];
 
         return $this->jsonWithType($payload, 'application/json');
-    }
-
-    #[Route(
-        path: '/.well-known/openid-configuration',
-        name: 'frontend.coding9.agent_ready.openid_configuration',
-        defaults: ['auth_required' => false, 'XmlHttpRequest' => true],
-        methods: ['GET']
-    )]
-    public function openIdConfiguration(Request $request): Response
-    {
-        // Mirrors the OAuth metadata so agents that look up either path succeed.
-        return $this->oauthAuthorizationServer($request);
     }
 
     #[Route(
@@ -141,6 +139,15 @@ class WellKnownController extends AbstractController
         return $this->jsonWithType($payload, 'application/json');
     }
 
+    /**
+     * MCP Server Card discovery document.
+     *
+     * Shape follows the SEP-1649 server-card discovery proposal:
+     * top-level name/description/version, an absolute endpoint URL, the
+     * MCP wire-protocol version and a transport descriptor. The MCP
+     * `initialize` capabilities object is intentionally NOT served here —
+     * that is the response of an MCP session, not a discovery card.
+     */
     #[Route(
         path: '/.well-known/mcp/server-card.json',
         name: 'frontend.coding9.agent_ready.mcp_server_card',
@@ -158,24 +165,24 @@ class WellKnownController extends AbstractController
         $endpoint = $this->config->getMcpServerEndpoint($sc);
 
         $payload = [
-            'serverInfo' => [
-                'name' => 'shopware-storefront',
-                'version' => '1.0.0',
-            ],
-            'transport' => [
-                'type' => 'http',
-                'endpoint' => $endpoint !== '' ? $endpoint : $base . '/mcp',
-            ],
-            'capabilities' => [
-                'tools' => (object) [],
-                'resources' => (object) [],
-                'prompts' => (object) [],
-            ],
+            'name' => 'shopware-storefront',
+            'description' => 'Discovery card for the Shopware 6 storefront. The MCP transport itself is provided by a separate plugin or external bridge.',
+            'version' => '1.0.0',
+            'protocolVersion' => '2025-06-18',
+            'endpoint' => $endpoint !== '' ? $endpoint : $base . '/mcp',
+            'transport' => 'streamable-http',
         ];
 
         return $this->jsonWithType($payload, 'application/json');
     }
 
+    /**
+     * A2A Agent Card per a2a-protocol.org/latest/specification.
+     *
+     * Mandatory: protocolVersion, name, description, url, version,
+     * preferredTransport, defaultInputModes, defaultOutputModes,
+     * capabilities, skills (each with id, name, description, tags).
+     */
     #[Route(
         path: '/.well-known/agent-card.json',
         name: 'frontend.coding9.agent_ready.a2a_agent_card',
@@ -192,16 +199,14 @@ class WellKnownController extends AbstractController
         $base = $this->absoluteBase($request);
 
         $payload = [
+            'protocolVersion' => '0.3.0',
             'name' => $this->config->getA2aAgentName($sc),
-            'version' => '1.0.0',
             'description' => $this->config->getA2aAgentDescription($sc),
-            'supportedInterfaces' => [
-                [
-                    'url' => $base . '/store-api',
-                    'transport' => 'jsonrpc-2.0',
-                    'protocol' => 'https://a2a-protocol.org/',
-                ],
-            ],
+            'url' => $base . '/store-api',
+            'preferredTransport' => 'JSONRPC',
+            'version' => '1.0.0',
+            'defaultInputModes' => ['text/plain', 'application/json'],
+            'defaultOutputModes' => ['application/json'],
             'capabilities' => [
                 'streaming' => false,
                 'pushNotifications' => false,
@@ -212,21 +217,25 @@ class WellKnownController extends AbstractController
                     'id' => 'search-products',
                     'name' => 'Search products',
                     'description' => 'Search the product catalog by keyword.',
+                    'tags' => ['search', 'catalog', 'products'],
                 ],
                 [
                     'id' => 'get-product',
                     'name' => 'Get product detail',
                     'description' => 'Retrieve detailed information for a single product by id or seo url.',
+                    'tags' => ['catalog', 'products'],
                 ],
                 [
                     'id' => 'add-to-cart',
                     'name' => 'Add product to cart',
                     'description' => 'Add a product line item to the current shopping cart.',
+                    'tags' => ['cart', 'checkout'],
                 ],
                 [
                     'id' => 'place-order',
                     'name' => 'Place order',
                     'description' => 'Place an order for the items in the current cart.',
+                    'tags' => ['checkout', 'orders'],
                 ],
             ],
         ];
@@ -290,17 +299,11 @@ class WellKnownController extends AbstractController
             return $this->disabled();
         }
 
-        $skills = [
-            'search-products' => "# Search products\n\nUse the Store API endpoint `POST /store-api/search` to look up products by keyword. Required input: `search` string.\n",
-            'place-order'     => "# Place order\n\n1. Build a cart via `POST /store-api/checkout/cart`.\n2. Add items via `POST /store-api/checkout/cart/line-item`.\n3. Place the order via `POST /store-api/checkout/order`.\n",
-            'manage-cart'     => "# Manage cart\n\nUse `/store-api/checkout/cart/line-item` (POST/PATCH/DELETE) to add, update or remove line items in the current cart.\n",
-        ];
-
-        if (!array_key_exists($slug, $skills)) {
+        if (!array_key_exists($slug, self::SKILL_BODIES)) {
             return new Response('not found', 404, ['Content-Type' => 'text/plain']);
         }
 
-        return new Response($skills[$slug], 200, [
+        return new Response(self::SKILL_BODIES[$slug], 200, [
             'Content-Type' => 'text/markdown; charset=UTF-8',
             'Cache-Control' => 'public, max-age=3600',
         ]);
@@ -311,30 +314,18 @@ class WellKnownController extends AbstractController
      */
     private function skillEntry(string $name, string $type, string $description, string $url): array
     {
-        // The hash references the canonical body the controller serves. Since
-        // we generate it from a constant string per skill, the hash stays
-        // stable as long as the body does.
-        $bodies = [
-            'search-products' => "# Search products\n\nUse the Store API endpoint `POST /store-api/search` to look up products by keyword. Required input: `search` string.\n",
-            'place-order'     => "# Place order\n\n1. Build a cart via `POST /store-api/checkout/cart`.\n2. Add items via `POST /store-api/checkout/cart/line-item`.\n3. Place the order via `POST /store-api/checkout/order`.\n",
-            'manage-cart'     => "# Manage cart\n\nUse `/store-api/checkout/cart/line-item` (POST/PATCH/DELETE) to add, update or remove line items in the current cart.\n",
-        ];
-        $body = $bodies[$name] ?? '';
-
         return [
             'name' => $name,
             'type' => $type,
             'description' => $description,
             'url' => $url,
-            'sha256' => hash('sha256', $body),
+            'sha256' => hash('sha256', self::SKILL_BODIES[$name] ?? ''),
         ];
     }
 
     private function absoluteBase(Request $request): string
     {
-        $scheme = $request->getScheme();
-        $host = $request->getHttpHost();
-        return rtrim($scheme . '://' . $host, '/');
+        return rtrim($request->getSchemeAndHttpHost(), '/');
     }
 
     private function salesChannelId(Request $request): ?string

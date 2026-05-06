@@ -77,11 +77,11 @@ MD;
     public function buildIndex(Request $request, ?string $salesChannelId = null): string
     {
         $base = $this->absoluteBase($request);
-        $name = $this->config->getSiteName($salesChannelId);
+        $name = $this->oneLine($this->config->getSiteName($salesChannelId));
         if ($name === '') {
             $name = $request->getHttpHost() ?: 'Shopware Storefront';
         }
-        $summary = $this->config->getSiteSummary($salesChannelId);
+        $summary = $this->oneLine($this->config->getSiteSummary($salesChannelId));
 
         $sections = [];
 
@@ -154,6 +154,16 @@ MD;
     {
         $value = $request->attributes->get('sw-sales-channel-id');
         return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    /**
+     * Strip CR/LF and any leading `#` characters that would otherwise let an
+     * admin-configurable value inject Markdown structure into the document.
+     */
+    private function oneLine(string $value): string
+    {
+        $value = preg_replace('/[\r\n]+/', ' ', $value) ?? $value;
+        return ltrim($value, "# \t");
     }
 
     private function markdown(string $body): Response

@@ -52,12 +52,25 @@ class WellKnownControllerTest extends TestCase
         self::assertContains('client_credentials', $payload['grant_types_supported']);
     }
 
-    public function testOpenIdConfigurationMirrorsOAuth(): void
+    public function testOAuthMetadataDoesNotAdvertiseUnsupportedFlows(): void
     {
+        // Shopware has no interactive authorization endpoint and no JWKS,
+        // and only supports the password / client_credentials / refresh_token
+        // grants. Anything else would mislead clients.
         $controller = $this->controller(new ArrayConfigReader());
-        $oauth = json_decode((string) $controller->oauthAuthorizationServer($this->request('https://x.example/'))->getContent(), true);
-        $oidc  = json_decode((string) $controller->openIdConfiguration($this->request('https://x.example/'))->getContent(), true);
-        self::assertSame($oauth, $oidc);
+        $payload = json_decode(
+            (string) $controller->oauthAuthorizationServer($this->request('https://shop.example/'))->getContent(),
+            true,
+            flags: JSON_THROW_ON_ERROR
+        );
+
+        self::assertArrayNotHasKey('authorization_endpoint', $payload);
+        self::assertArrayNotHasKey('jwks_uri', $payload);
+        self::assertArrayNotHasKey('response_types_supported', $payload);
+        self::assertSame(
+            ['password', 'client_credentials', 'refresh_token'],
+            $payload['grant_types_supported']
+        );
     }
 
     public function testOAuthProtectedResource(): void
@@ -70,14 +83,20 @@ class WellKnownControllerTest extends TestCase
         self::assertSame(['https://shop.example'], $payload['authorization_servers']);
     }
 
-    public function testMcpServerCardDefaultsEndpointToOrigin(): void
+    public function testMcpServerCardFollowsDiscoveryShape(): void
     {
         $controller = $this->controller(new ArrayConfigReader());
         $response = $controller->mcpServerCard($this->request('https://shop.example/'));
         $payload = json_decode((string) $response->getContent(), true, flags: JSON_THROW_ON_ERROR);
 
-        self::assertSame('shopware-storefront', $payload['serverInfo']['name']);
-        self::assertSame('https://shop.example/mcp', $payload['transport']['endpoint']);
+        // SEP-1649 discovery shape: top-level name/version/endpoint/protocolVersion/transport,
+        // NOT the nested initialize-response shape.
+        self::assertSame('shopware-storefront', $payload['name']);
+        self::assertSame('https://shop.example/mcp', $payload['endpoint']);
+        self::assertArrayHasKey('protocolVersion', $payload);
+        self::assertArrayHasKey('transport', $payload);
+        self::assertArrayHasKey('version', $payload);
+        self::assertArrayNotHasKey('serverInfo', $payload, 'serverInfo is initialize-response, not discovery');
     }
 
     public function testMcpServerCardHonoursConfiguredEndpoint(): void
@@ -89,22 +108,38 @@ class WellKnownControllerTest extends TestCase
         $response = $controller->mcpServerCard($this->request('https://shop.example/'));
         $payload = json_decode((string) $response->getContent(), true, flags: JSON_THROW_ON_ERROR);
 
-        self::assertSame('https://mcp.example/v1', $payload['transport']['endpoint']);
+        self::assertSame('https://mcp.example/v1', $payload['endpoint']);
     }
 
-    public function testA2aAgentCardHasSkillsAndInterfaces(): void
+    public function testA2aAgentCardMatchesA2aProtocolSpec(): void
     {
         $controller = $this->controller(new ArrayConfigReader());
         $response = $controller->a2aAgentCard($this->request('https://shop.example/'));
         $payload = json_decode((string) $response->getContent(), true, flags: JSON_THROW_ON_ERROR);
 
+        // Mandatory top-level fields per a2a-protocol.org/latest/specification.
+        foreach (
+            ['protocolVersion', 'name', 'description', 'url', 'preferredTransport',
+             'version', 'defaultInputModes', 'defaultOutputModes', 'capabilities', 'skills']
+            as $field
+        ) {
+            self::assertArrayHasKey($field, $payload, "missing required A2A field: $field");
+        }
+
+        self::assertSame('https://shop.example/store-api', $payload['url']);
+        self::assertSame('JSONRPC', $payload['preferredTransport']);
+        self::assertIsArray($payload['defaultInputModes']);
+        self::assertIsArray($payload['defaultOutputModes']);
         self::assertNotEmpty($payload['skills']);
+
         foreach ($payload['skills'] as $skill) {
             self::assertArrayHasKey('id', $skill);
             self::assertArrayHasKey('name', $skill);
             self::assertArrayHasKey('description', $skill);
+            self::assertArrayHasKey('tags', $skill, 'A2A skills must declare tags');
+            self::assertIsArray($skill['tags']);
+            self::assertNotEmpty($skill['tags']);
         }
-        self::assertSame('https://shop.example/store-api', $payload['supportedInterfaces'][0]['url']);
     }
 
     public function testAgentSkillsIndexLooksValid(): void

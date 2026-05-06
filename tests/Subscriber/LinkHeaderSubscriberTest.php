@@ -53,6 +53,25 @@ class LinkHeaderSubscriberTest extends TestCase
         self::assertSame([], $event->getResponse()->headers->all('link'));
     }
 
+    public function testSkipsNonSuccessResponses(): void
+    {
+        $sub = $this->subscriber(new ArrayConfigReader());
+        $request = Request::create('/');
+        $request->attributes->set('_route', 'frontend.home.page');
+
+        foreach ([301, 302, 404, 500] as $status) {
+            $event = new ResponseEvent(
+                $this->kernel(),
+                $request,
+                HttpKernelInterface::MAIN_REQUEST,
+                new Response('', $status)
+            );
+            $sub->onResponse($event);
+            self::assertSame([], $event->getResponse()->headers->all('link'),
+                "Link header must not be emitted on HTTP $status");
+        }
+    }
+
     public function testIgnoresSubRequests(): void
     {
         $sub = $this->subscriber(new ArrayConfigReader());

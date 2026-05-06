@@ -3,7 +3,9 @@
 {% block base_body_inner %}
     {{ parent() }}
 
-    {% if config('Coding9AgentReady.config.enableWebMcp') %}
+    {# Resolve the toggle per sales-channel so multi-channel shops can opt in or out individually. #}
+    {% set _coding9_sc_id = context.salesChannel.id ?? null %}
+    {% if config('Coding9AgentReady.config.enableWebMcp', _coding9_sc_id) %}
         <script type="text/javascript" data-coding9-agent-ready="webmcp">
             (function () {
                 if (typeof navigator === 'undefined' || !('modelContext' in navigator)) {

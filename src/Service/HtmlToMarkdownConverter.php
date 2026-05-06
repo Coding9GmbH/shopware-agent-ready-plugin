@@ -13,6 +13,16 @@ namespace Coding9\AgentReady\Service;
 class HtmlToMarkdownConverter
 {
     /**
+     * Hard cap on the HTML payload we are willing to parse. Larger inputs
+     * are truncated; this protects the worker from a DOM bomb or a very
+     * large CMS page pinning the request thread.
+     */
+    public const MAX_INPUT_BYTES = 1_500_000;
+
+    /** Allow-list of URL schemes we keep as link / image targets. */
+    private const ALLOWED_SCHEMES = ['http', 'https', 'mailto', 'tel'];
+
+    /**
      * @return array{markdown: string, tokens: int}
      */
     public function convertWithTokens(string $html): array
@@ -28,6 +38,10 @@ class HtmlToMarkdownConverter
     {
         if ($html === '') {
             return '';
+        }
+
+        if (strlen($html) > self::MAX_INPUT_BYTES) {
+            $html = substr($html, 0, self::MAX_INPUT_BYTES);
         }
 
         $dom = new \DOMDocument();
@@ -54,11 +68,18 @@ class HtmlToMarkdownConverter
             return trim(strip_tags($html));
         }
 
-        // Strip noise that is not useful to an agent.
+        // Strip noise that is not useful to an agent. We deliberately do NOT
+        // remove every <header>/<footer>/<nav>: HTML5 puts an <article>'s
+        // title inside <header>, and many CMS templates wrap genuine content
+        // in <section>/<article>/<aside>. Only top-level page chrome is
+        // dropped (direct children of <body>/<main>).
         $unwanted = $xpath->query(
             './/script | .//style | .//noscript | .//template | .//svg | .//iframe | '
-            . './/header | .//footer | .//nav | .//*[@aria-hidden="true"] | '
-            . './/*[contains(@class, "cookie")] | .//*[contains(@class, "offcanvas")]',
+            . './*[self::header or self::footer or self::nav] | '
+            . './/*[@aria-hidden="true"] | '
+            . './/*[contains(concat(" ", normalize-space(@class), " "), " cookie-permission ") '
+            . 'or contains(concat(" ", normalize-space(@class), " "), " cookie-banner ") '
+            . 'or contains(concat(" ", normalize-space(@class), " "), " offcanvas ")]',
             $main
         );
         if ($unwanted) {
@@ -131,9 +152,9 @@ class HtmlToMarkdownConverter
 
     private function renderAnchor(\DOMElement $node): string
     {
-        $text = trim($this->renderChildren($node));
-        $href = $node->getAttribute('href');
-        if ($href === '' || $text === '') {
+        $text = $this->escapeLinkText(trim($this->renderChildren($node)));
+        $href = $this->safeUrl($node->getAttribute('href'));
+        if ($href === null || $text === '') {
             return $text;
         }
         return '[' . $text . '](' . $href . ')';
@@ -141,12 +162,45 @@ class HtmlToMarkdownConverter
 
     private function renderImage(\DOMElement $node): string
     {
-        $alt = trim($node->getAttribute('alt'));
-        $src = trim($node->getAttribute('src'));
-        if ($src === '') {
+        $alt = $this->escapeLinkText(trim($node->getAttribute('alt')));
+        $src = $this->safeUrl($node->getAttribute('src'));
+        if ($src === null) {
             return '';
         }
         return '![' . $alt . '](' . $src . ')';
+    }
+
+    /**
+     * Returns the URL if it's safe to embed in markdown, otherwise null.
+     * Disallows javascript:, data:, vbscript: and any other non-allow-listed
+     * scheme. Relative URLs (no scheme) are kept as-is.
+     */
+    private function safeUrl(string $url): ?string
+    {
+        $url = trim($url);
+        if ($url === '') {
+            return null;
+        }
+        // Block control characters and parens that would break the markdown
+        // link syntax.
+        if (preg_match('/[\x00-\x1F\x7F]/', $url) === 1) {
+            return null;
+        }
+        if (preg_match('#^([a-z][a-z0-9+.-]*):#i', $url, $m) === 1) {
+            $scheme = strtolower($m[1]);
+            if (!in_array($scheme, self::ALLOWED_SCHEMES, true)) {
+                return null;
+            }
+        }
+        // Escape parens and whitespace inside the URL.
+        return strtr($url, [' ' => '%20', '(' => '%28', ')' => '%29']);
+    }
+
+    private function escapeLinkText(string $text): string
+    {
+        // Markdown link text must not contain a closing bracket. Replace
+        // angle brackets too because some renderers try to interpret them.
+        return strtr($text, [']' => '\\]', '[' => '\\[']);
     }
 
     private function renderList(\DOMElement $node, bool $ordered): string

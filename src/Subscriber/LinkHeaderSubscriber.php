@@ -33,6 +33,14 @@ class LinkHeaderSubscriber implements EventSubscriberInterface
         $request = $event->getRequest();
         $response = $event->getResponse();
 
+        // Skip error pages and redirects — emitting discovery hints on a 404
+        // page or 30x redirect is misleading and many caches strip headers
+        // from non-2xx responses anyway.
+        $status = $response->getStatusCode();
+        if ($status < 200 || $status >= 300) {
+            return;
+        }
+
         if (!$this->isHomepage($request)) {
             return;
         }
