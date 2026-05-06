@@ -1,0 +1,126 @@
+<?php declare(strict_types=1);
+
+namespace Coding9\AgentReady\Subscriber;
+
+use Coding9\AgentReady\Service\AgentConfig;
+use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Symfony\Component\HttpKernel\Event\ResponseEvent;
+use Symfony\Component\HttpKernel\KernelEvents;
+
+/**
+ * Adds RFC 8288 Link response headers to the storefront homepage so that
+ * agents can discover well-known resources (api-catalog, service-doc, ...).
+ */
+class LinkHeaderSubscriber implements EventSubscriberInterface
+{
+    public function __construct(private readonly AgentConfig $config)
+    {
+    }
+
+    public static function getSubscribedEvents(): array
+    {
+        return [
+            KernelEvents::RESPONSE => ['onResponse', -10],
+        ];
+    }
+
+    public function onResponse(ResponseEvent $event): void
+    {
+        if (!$event->isMainRequest()) {
+            return;
+        }
+
+        $request = $event->getRequest();
+        $response = $event->getResponse();
+
+        // Skip error pages and redirects — emitting discovery hints on a 404
+        // page or 30x redirect is misleading and many caches strip headers
+        // from non-2xx responses anyway.
+        $status = $response->getStatusCode();
+        if ($status < 200 || $status >= 300) {
+            return;
+        }
+
+        if (!$this->isHomepage($request)) {
+            return;
+        }
+
+        $salesChannelId = $this->salesChannelId($request);
+
+        if (!$this->config->isLinkHeadersEnabled($salesChannelId)) {
+            return;
+        }
+
+        $links = $this->buildLinks($salesChannelId);
+
+        // RFC 7230 allows multiple Link headers as well as a single comma-separated header.
+        // We send one entry per logical relation as separate values; Symfony will fold them
+        // into a comma-separated list, which is RFC 8288 compliant.
+        foreach ($links as $link) {
+            $response->headers->set('Link', $link, false);
+        }
+    }
+
+    /**
+     * @return string[]
+     */
+    public function buildLinks(?string $salesChannelId = null): array
+    {
+        $links = [];
+
+        if ($this->config->isApiCatalogEnabled($salesChannelId)) {
+            $links[] = '</.well-known/api-catalog>; rel="api-catalog"';
+        }
+
+        $serviceDoc = $this->config->getServiceDocPath($salesChannelId);
+        if ($serviceDoc !== '') {
+            $links[] = '<' . $serviceDoc . '>; rel="service-doc"';
+        }
+
+        if ($this->config->isMcpServerCardEnabled($salesChannelId)) {
+            $links[] = '</.well-known/mcp/server-card.json>; rel="mcp-server-card"';
+        }
+
+        if ($this->config->isA2aAgentCardEnabled($salesChannelId)) {
+            $links[] = '</.well-known/agent-card.json>; rel="a2a-agent-card"';
+        }
+
+        if ($this->config->isAgentSkillsIndexEnabled($salesChannelId)) {
+            $links[] = '</.well-known/agent-skills/index.json>; rel="agent-skills"';
+        }
+
+        if ($this->config->isOAuthDiscoveryEnabled($salesChannelId)) {
+            $links[] = '</.well-known/oauth-authorization-server>; rel="oauth-authorization-server"';
+        }
+
+        if ($this->config->isOAuthProtectedResourceEnabled($salesChannelId)) {
+            $links[] = '</.well-known/oauth-protected-resource>; rel="oauth-protected-resource"';
+        }
+
+        if ($this->config->isLlmsTxtEnabled($salesChannelId)) {
+            $links[] = '</llms.txt>; rel="llms-txt"';
+        }
+
+        return $links;
+    }
+
+    private function isHomepage(\Symfony\Component\HttpFoundation\Request $request): bool
+    {
+        $route = $request->attributes->get('_route');
+        if ($route === 'frontend.home.page') {
+            return true;
+        }
+
+        // fallback for sub-requests / proxied paths
+        $path = $request->getPathInfo();
+        return $path === '/' || $path === '';
+    }
+
+    private function salesChannelId(\Symfony\Component\HttpFoundation\Request $request): ?string
+    {
+        // Storefront RequestTransformer sets PlatformRequest::ATTRIBUTE_SALES_CHANNEL_ID
+        // (= 'sw-sales-channel-id'). Read it as a string to stay decoupled.
+        $value = $request->attributes->get('sw-sales-channel-id');
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+}

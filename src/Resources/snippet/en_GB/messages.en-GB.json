@@ -1,0 +1,11 @@
+{
+    "coding9-agent-ready": {
+        "config": {
+            "linkHeadersCard": "Link headers (RFC 8288)",
+            "markdownCard": "Markdown for Agents",
+            "contentSignalsCard": "Content Signals (robots.txt)",
+            "wellKnownCard": "Well-Known endpoints",
+            "webMcpCard": "WebMCP"
+        }
+    }
+}

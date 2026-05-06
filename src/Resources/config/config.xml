@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/shopware/shopware/trunk/src/Core/System/SystemConfig/Schema/config.xsd">
+
+    <card>
+        <title>Link headers (RFC 8288)</title>
+        <title lang="de-DE">Link Header (RFC 8288)</title>
+
+        <input-field type="bool">
+            <name>enableLinkHeaders</name>
+            <label>Enable Link response headers on the homepage</label>
+            <label lang="de-DE">Link Response-Header auf der Startseite aktivieren</label>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="text">
+            <name>serviceDocPath</name>
+            <label>Path to API documentation (rel="service-doc")</label>
+            <label lang="de-DE">Pfad zur API-Dokumentation (rel="service-doc")</label>
+            <defaultValue>/docs/api</defaultValue>
+        </input-field>
+    </card>
+
+    <card>
+        <title>Markdown for Agents</title>
+        <title lang="de-DE">Markdown für Agenten</title>
+
+        <input-field type="bool">
+            <name>enableMarkdownNegotiation</name>
+            <label>Return markdown when Accept: text/markdown is requested</label>
+            <label lang="de-DE">Markdown ausliefern, wenn Accept: text/markdown angefragt wird</label>
+            <defaultValue>true</defaultValue>
+        </input-field>
+    </card>
+
+    <card>
+        <title>Content Signals (robots.txt)</title>
+        <title lang="de-DE">Content Signals (robots.txt)</title>
+
+        <input-field type="bool">
+            <name>enableContentSignals</name>
+            <label>Add Content-Signal directives to robots.txt</label>
+            <label lang="de-DE">Content-Signal Direktiven in robots.txt hinzufügen</label>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="single-select">
+            <name>contentSignalAiTrain</name>
+            <label>ai-train</label>
+            <defaultValue>no</defaultValue>
+            <options>
+                <option><id>yes</id><name>yes</name></option>
+                <option><id>no</id><name>no</name></option>
+            </options>
+        </input-field>
+
+        <input-field type="single-select">
+            <name>contentSignalSearch</name>
+            <label>search</label>
+            <defaultValue>yes</defaultValue>
+            <options>
+                <option><id>yes</id><name>yes</name></option>
+                <option><id>no</id><name>no</name></option>
+            </options>
+        </input-field>
+
+        <input-field type="single-select">
+            <name>contentSignalAiInput</name>
+            <label>ai-input</label>
+            <defaultValue>no</defaultValue>
+            <options>
+                <option><id>yes</id><name>yes</name></option>
+                <option><id>no</id><name>no</name></option>
+            </options>
+        </input-field>
+    </card>
+
+    <card>
+        <title>Well-Known endpoints</title>
+        <title lang="de-DE">Well-Known Endpunkte</title>
+
+        <input-field type="bool">
+            <name>enableApiCatalog</name>
+            <label>Publish /.well-known/api-catalog (RFC 9727)</label>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>enableOAuthDiscovery</name>
+            <label>Publish /.well-known/oauth-authorization-server (RFC 8414)</label>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>enableOAuthProtectedResource</name>
+            <label>Publish /.well-known/oauth-protected-resource (RFC 9728)</label>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>enableMcpServerCard</name>
+            <label>Publish /.well-known/mcp/server-card.json (SEP-1649)</label>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="text">
+            <name>mcpServerEndpoint</name>
+            <label>MCP server endpoint URL (leave empty to omit)</label>
+            <label lang="de-DE">MCP Server Endpunkt URL (leer = weglassen)</label>
+        </input-field>
+
+        <input-field type="bool">
+            <name>enableA2aAgentCard</name>
+            <label>Publish /.well-known/agent-card.json (A2A)</label>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="text">
+            <name>a2aAgentName</name>
+            <label>A2A agent name</label>
+            <defaultValue>Shopware Storefront Agent</defaultValue>
+        </input-field>
+
+        <input-field type="textarea">
+            <name>a2aAgentDescription</name>
+            <label>A2A agent description</label>
+            <defaultValue>Discover products, place orders and manage the shopping cart on this Shopware 6 storefront.</defaultValue>
+        </input-field>
+
+        <input-field type="bool">
+            <name>enableAgentSkillsIndex</name>
+            <label>Publish /.well-known/agent-skills/index.json</label>
+            <defaultValue>true</defaultValue>
+        </input-field>
+    </card>
+
+    <card>
+        <title>llms.txt</title>
+        <title lang="de-DE">llms.txt</title>
+
+        <input-field type="bool">
+            <name>enableLlmsTxt</name>
+            <label>Publish /llms.txt and /llms-full.txt</label>
+            <label lang="de-DE">/llms.txt und /llms-full.txt veröffentlichen</label>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="text">
+            <name>siteName</name>
+            <label>Site name (defaults to the sales channel hostname)</label>
+            <label lang="de-DE">Shop-Name (Standard: Hostname des Sales Channels)</label>
+        </input-field>
+
+        <input-field type="textarea">
+            <name>siteSummary</name>
+            <label>Short summary used as the llms.txt blockquote</label>
+            <label lang="de-DE">Kurzbeschreibung für das llms.txt Blockquote</label>
+            <defaultValue>Shopware 6 storefront with AI-agent discovery enabled.</defaultValue>
+        </input-field>
+    </card>
+
+    <card>
+        <title>WebMCP</title>
+        <title lang="de-DE">WebMCP</title>
+
+        <input-field type="bool">
+            <name>enableWebMcp</name>
+            <label>Inject navigator.modelContext.provideContext() tools on storefront pages</label>
+            <label lang="de-DE">navigator.modelContext.provideContext() Tools im Storefront einbinden</label>
+            <defaultValue>true</defaultValue>
+        </input-field>
+    </card>
+</config>
