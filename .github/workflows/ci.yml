@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   tests:
     runs-on: ubuntu-latest
@@ -25,28 +29,82 @@ jobs:
           tools: composer:v2
 
       - name: Show environment
+        id: env
         run: |
+          set -x
           php -v
           composer --version
           php -m | sort
           ls -la
+          pwd
+        # Always write a file we can read on failure.
+        continue-on-error: false
 
       - name: Validate composer.json
-        run: composer validate --no-check-publish
+        id: validate
+        run: composer validate --no-check-publish 2>&1 | tee /tmp/validate.log
 
       - name: Install dependencies
-        # See composer.json `config.platform-check`: false. The Shopware 6.7
-        # transitive dep tree (lcobucci/clock, symfony/var-dumper, ...) has
-        # moved to PHP 8.4-min in mid-2026, but the plugin code itself runs
-        # on 8.2+. --ignore-platform-req=php lets composer install on every
-        # matrix PHP; the runtime check is disabled in composer.json.
-        run: composer install --prefer-dist --no-interaction --ignore-platform-req=php
+        id: install
+        run: composer install --prefer-dist --no-interaction --ignore-platform-req=php -vvv 2>&1 | tee /tmp/install.log
 
       - name: Run PHPUnit
-        run: vendor/bin/phpunit --testdox
+        id: phpunit
+        run: vendor/bin/phpunit --testdox 2>&1 | tee /tmp/phpunit.log
 
       - name: Run PHPStan
-        run: vendor/bin/phpstan analyse --no-progress
+        id: phpstan
+        run: vendor/bin/phpstan analyse --no-progress 2>&1 | tee /tmp/phpstan.log
+
+      - name: Capture failure log into PR comment
+        if: ${{ failure() && github.event_name == 'pull_request' }}
+        uses: actions/github-script@v7
+        env:
+          PHP_VERSION: ${{ matrix.php }}
+        with:
+          script: |
+            const fs = require('fs');
+            const read = (p) => { try { return fs.readFileSync(p, 'utf8'); } catch { return '(no output)'; } };
+            const tail = (s, n = 80) => s.split('\n').slice(-n).join('\n');
+            const body = [
+              `### CI failure — PHP \`${process.env.PHP_VERSION}\``,
+              ``,
+              `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              ``,
+              `<details><summary>composer validate</summary>`,
+              '',
+              '```',
+              tail(read('/tmp/validate.log')),
+              '```',
+              '</details>',
+              '',
+              `<details><summary>composer install (last 80 lines)</summary>`,
+              '',
+              '```',
+              tail(read('/tmp/install.log')),
+              '```',
+              '</details>',
+              '',
+              `<details><summary>phpunit (last 80 lines)</summary>`,
+              '',
+              '```',
+              tail(read('/tmp/phpunit.log')),
+              '```',
+              '</details>',
+              '',
+              `<details><summary>phpstan (last 40 lines)</summary>`,
+              '',
+              '```',
+              tail(read('/tmp/phpstan.log'), 40),
+              '```',
+              '</details>',
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body,
+            });
 
   validate:
     runs-on: ubuntu-latest
