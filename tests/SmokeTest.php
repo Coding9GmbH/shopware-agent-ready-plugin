@@ -93,6 +93,10 @@ class SmokeTest extends TestCase
 
     public function testReleaseZipContainsMandatoryShopwareArtefacts(): void
     {
+        if (!class_exists(\ZipArchive::class)) {
+            self::markTestSkipped('ZipArchive (php-zip extension) is not available');
+        }
+
         $version = json_decode(
             (string) file_get_contents(__DIR__ . '/../composer.json'),
             true,
@@ -144,6 +148,19 @@ class SmokeTest extends TestCase
                     "release zip should not contain $needle (found: $name)"
                 );
             }
+
+            // Shopware Plugin Manager rejects archives that contain macOS
+            // resource-fork files (__MACOSX/, ._*) for security reasons.
+            self::assertStringNotContainsString(
+                '__MACOSX',
+                $name,
+                "release zip must not contain macOS resource-fork files (found: $name)"
+            );
+            self::assertDoesNotMatchRegularExpression(
+                '#(^|/)\._#',
+                $name,
+                "release zip must not contain AppleDouble files (found: $name)"
+            );
         }
     }
 }

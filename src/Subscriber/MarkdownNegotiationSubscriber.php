@@ -125,6 +125,9 @@ class MarkdownNegotiationSubscriber implements EventSubscriberInterface
         return true;
     }
 
+    /**
+     * @param string[] $list
+     */
     private function rank(array $list, string $needle): ?int
     {
         foreach ($list as $i => $entry) {

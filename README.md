@@ -31,10 +31,18 @@ shop starts speaking the protocols agents already understand.
 
 ### Via the pre-built zip (easiest)
 
-Grab `Coding9AgentReady-<version>.zip` from the
+Grab **`Coding9AgentReady-<version>.zip`** from the
 [GitHub Releases page](https://github.com/coding9gmbh/shopware-agent-ready/releases/latest)
 and upload it via *Extensions → My extensions → Upload extension*.
-Each release is built and signed by the [tag-driven pipeline](.github/workflows/release.yml).
+Each release is built by the [tag-driven pipeline](.github/workflows/release.yml).
+
+> ⚠️ Use the release **asset** named `Coding9AgentReady-<version>.zip`, not the
+> auto-generated *"Source code (zip)"* link. The Shopware Plugin Manager
+> rejects source archives because (a) their inner directory is `shopware-agent-ready`
+> instead of `Coding9AgentReady`, and (b) when downloaded on macOS they get
+> `__MACOSX/._*` resource-fork files that the Plugin Manager refuses for
+> security reasons. The release asset is a clean Shopware-Store-compliant
+> bundle without those.
 
 ### Via composer
 
