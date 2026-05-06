@@ -44,7 +44,8 @@ jobs:
           fi
 
       - name: Install dev dependencies
-        run: composer install --prefer-dist --no-progress --no-interaction
+        # See ci.yml for the rationale behind --ignore-platform-req=php.
+        run: composer install --prefer-dist --no-progress --no-interaction --ignore-platform-req=php
 
       - name: Run PHPUnit
         run: vendor/bin/phpunit

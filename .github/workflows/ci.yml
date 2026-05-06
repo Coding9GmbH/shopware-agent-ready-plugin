@@ -31,7 +31,15 @@ jobs:
           restore-keys: composer-${{ matrix.php }}-
 
       - name: Install dependencies
-        run: composer install --prefer-dist --no-progress --no-interaction
+        # --ignore-platform-req=php: shopware/core 6.7's transitive deps
+        # have moved to PHP 8.4-min in mid-2026 (lcobucci/clock,
+        # symfony/var-dumper, doctrine/instantiator, ...). The plugin
+        # code itself remains 8.2-compatible; in production the host
+        # shop's composer.lock pins compatible older versions, so the
+        # install-time php constraint only matters for our isolated
+        # fresh-install test matrix. platform-check is off in
+        # composer.json so the runtime check does not fire.
+        run: composer install --prefer-dist --no-progress --no-interaction --ignore-platform-req=php
 
       - name: Run PHPUnit
         run: vendor/bin/phpunit --testdox
