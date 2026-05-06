@@ -16,30 +16,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup PHP
+      - name: Setup PHP ${{ matrix.php }}
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: mbstring, dom, libxml, json, intl, zip
+          extensions: mbstring, dom, intl, zip
           coverage: none
+          tools: composer:v2
 
-      - name: Cache composer
-        uses: actions/cache@v4
-        with:
-          path: ~/.composer/cache
-          key: composer-${{ matrix.php }}-${{ hashFiles('composer.json') }}
-          restore-keys: composer-${{ matrix.php }}-
+      - name: Show environment
+        run: |
+          php -v
+          composer --version
+          php -m | sort
+          ls -la
+
+      - name: Validate composer.json
+        run: composer validate --no-check-publish
 
       - name: Install dependencies
-        # --ignore-platform-req=php: shopware/core 6.7's transitive deps
-        # have moved to PHP 8.4-min in mid-2026 (lcobucci/clock,
-        # symfony/var-dumper, doctrine/instantiator, ...). The plugin
-        # code itself remains 8.2-compatible; in production the host
-        # shop's composer.lock pins compatible older versions, so the
-        # install-time php constraint only matters for our isolated
-        # fresh-install test matrix. platform-check is off in
-        # composer.json so the runtime check does not fire.
-        run: composer install --prefer-dist --no-progress --no-interaction --ignore-platform-req=php
+        # See composer.json `config.platform-check`: false. The Shopware 6.7
+        # transitive dep tree (lcobucci/clock, symfony/var-dumper, ...) has
+        # moved to PHP 8.4-min in mid-2026, but the plugin code itself runs
+        # on 8.2+. --ignore-platform-req=php lets composer install on every
+        # matrix PHP; the runtime check is disabled in composer.json.
+        run: composer install --prefer-dist --no-interaction --ignore-platform-req=php
 
       - name: Run PHPUnit
         run: vendor/bin/phpunit --testdox
@@ -54,8 +55,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
-          extensions: mbstring, dom, libxml, json, intl, zip, gd
+          php-version: '8.4'
+          extensions: mbstring, dom, intl, zip, gd
           coverage: none
       - uses: FriendsOfShopware/shopware-cli-action@v1
       - run: shopware-cli extension validate .
