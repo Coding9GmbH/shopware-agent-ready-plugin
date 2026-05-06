@@ -77,11 +77,13 @@ class McpControllerTest extends TestCase
     private function controller(?ArrayConfigReader $reader = null): McpController
     {
         $reader ??= new ArrayConfigReader();
+        $config = new AgentConfig($reader);
         return new McpController(
-            new AgentConfig($reader),
+            $config,
             new McpServer(
                 new SkillRegistry(),
-                new SkillExecutor(new FakeStoreApiClient(), new StaticSalesChannelKeyResolver()),
+                new SkillExecutor(new FakeStoreApiClient(), new StaticSalesChannelKeyResolver(), $config),
+                $config,
             ),
         );
     }

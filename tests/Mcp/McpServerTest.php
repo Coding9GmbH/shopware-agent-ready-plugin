@@ -132,9 +132,11 @@ class McpServerTest extends TestCase
 
     private function server(?FakeStoreApiClient $client = null): McpServer
     {
+        $config = new \Coding9\AgentReady\Service\AgentConfig(new \Coding9\AgentReady\Tests\Support\ArrayConfigReader());
         return new McpServer(
             new SkillRegistry(),
-            new SkillExecutor($client ?? new FakeStoreApiClient(), new StaticSalesChannelKeyResolver()),
+            new SkillExecutor($client ?? new FakeStoreApiClient(), new StaticSalesChannelKeyResolver(), $config),
+            $config,
         );
     }
 }

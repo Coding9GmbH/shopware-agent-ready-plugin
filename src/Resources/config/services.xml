@@ -34,16 +34,19 @@
         <service id="Coding9\AgentReady\Skill\SkillExecutor">
             <argument type="service" id="Coding9\AgentReady\StoreApi\StoreApiClient"/>
             <argument type="service" id="Coding9\AgentReady\StoreApi\SalesChannelKeyResolver"/>
+            <argument type="service" id="Coding9\AgentReady\Service\AgentConfig"/>
         </service>
 
         <service id="Coding9\AgentReady\Mcp\McpServer">
             <argument type="service" id="Coding9\AgentReady\Skill\SkillRegistry"/>
             <argument type="service" id="Coding9\AgentReady\Skill\SkillExecutor"/>
+            <argument type="service" id="Coding9\AgentReady\Service\AgentConfig"/>
         </service>
 
         <service id="Coding9\AgentReady\A2a\A2aServer">
             <argument type="service" id="Coding9\AgentReady\Skill\SkillRegistry"/>
             <argument type="service" id="Coding9\AgentReady\Skill\SkillExecutor"/>
+            <argument type="service" id="Coding9\AgentReady\Service\AgentConfig"/>
         </service>
 
         <!-- Subscribers -->

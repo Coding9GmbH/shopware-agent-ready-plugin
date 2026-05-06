@@ -2,6 +2,7 @@
 
 namespace Coding9\AgentReady\Mcp;
 
+use Coding9\AgentReady\Service\AgentConfig;
 use Coding9\AgentReady\Skill\SkillExecutor;
 use Coding9\AgentReady\Skill\SkillInputException;
 use Coding9\AgentReady\Skill\SkillRegistry;
@@ -27,6 +28,7 @@ class McpServer
     public function __construct(
         private readonly SkillRegistry $registry,
         private readonly SkillExecutor $executor,
+        private readonly AgentConfig $config,
         private readonly string $serverName = 'shopware-storefront',
         private readonly string $serverVersion = '1.0.0',
     ) {
@@ -54,7 +56,7 @@ class McpServer
         try {
             $result = match ($method) {
                 'initialize' => $this->initialize(),
-                'tools/list' => $this->toolsList(),
+                'tools/list' => $this->toolsList($salesChannelId),
                 'tools/call' => $this->toolsCall($params, $salesChannelId),
                 'ping' => new \stdClass(),
                 'notifications/initialized', 'notifications/cancelled' => null,
@@ -104,11 +106,16 @@ class McpServer
     }
 
     /** @return array<string, mixed> */
-    private function toolsList(): array
+    private function toolsList(?string $salesChannelId): array
     {
-        return [
-            'tools' => $this->registry->asMcpToolList(),
-        ];
+        $allTools = $this->registry->asMcpToolList();
+        $filtered = [];
+        foreach ($allTools as $tool) {
+            if ($this->config->isSkillEnabled((string) $tool['name'], true, $salesChannelId)) {
+                $filtered[] = $tool;
+            }
+        }
+        return ['tools' => $filtered];
     }
 
     /**
@@ -123,7 +130,7 @@ class McpServer
         }
 
         $skill = $this->registry->get($name);
-        if ($skill === null) {
+        if ($skill === null || !$this->config->isSkillEnabled($skill->id, true, $salesChannelId)) {
             throw new McpMethodNotFoundException($name);
         }
 

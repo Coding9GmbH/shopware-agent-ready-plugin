@@ -244,6 +244,33 @@ request.
 > accounts (with order limits configured in the Shopware admin) over a
 > human customer's primary credentials.
 
+#### Hardening knobs (Plugin admin → *Hardening* + *Skill toggles*)
+
+The plugin ships safe defaults for development and exposes three knobs
+operators can tighten before going live:
+
+  * **Per-skill toggles** — every skill (`search-products`, `get-product`,
+    `create-context`, `get-cart`, `manage-cart`, `customer-login`,
+    `customer-logout`, `place-order`) can be individually disabled. A
+    disabled skill is hidden from `tools/list`, the agent-card.json and
+    the agent-skills index, and `tools/call` returns method-not-found
+    instead of executing it. Read-only catalog deployments can switch
+    everything except `search-products` + `get-product` off.
+  * **`placeOrderMaxAmount`** — server-side cap, enforced in
+    `SkillExecutor`. Before placing an order the executor fetches
+    `/store-api/checkout/cart`, compares `price.totalPrice` to the cap,
+    and refuses with `403 order_amount_exceeds_limit` if exceeded. Use
+    this even when you trust the customer account — it's the cheapest
+    safety net for an out-of-control agent.
+  * **`corsAllowedOrigins`** — the `/mcp` and `/a2a` endpoints emit
+    `Access-Control-Allow-Origin` only when the request's `Origin` is on
+    this allowlist. **The default is empty**, so no browser tab can
+    cross-origin POST credentials to your shop. Server-to-server agent
+    hosts (Claude Desktop, Cursor, OpenAI Agents SDK) don't send
+    `Origin` and don't need CORS. Add `https://claude.ai` or similar
+    explicitly if you do want browser hosts; use `*` only for local
+    development.
+
 ### A2A server runtime (`POST /a2a`)
 
 JSON-RPC `message/send` shares the same `SkillExecutor` as the MCP server,

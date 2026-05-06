@@ -53,11 +53,13 @@ class A2aControllerTest extends TestCase
     private function controller(?ArrayConfigReader $reader = null, ?FakeStoreApiClient $client = null): A2aController
     {
         $reader ??= new ArrayConfigReader();
+        $config = new AgentConfig($reader);
         return new A2aController(
-            new AgentConfig($reader),
+            $config,
             new A2aServer(
                 new SkillRegistry(),
-                new SkillExecutor($client ?? new FakeStoreApiClient(), new StaticSalesChannelKeyResolver()),
+                new SkillExecutor($client ?? new FakeStoreApiClient(), new StaticSalesChannelKeyResolver(), $config),
+                $config,
             ),
         );
     }

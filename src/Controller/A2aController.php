@@ -3,6 +3,7 @@
 namespace Coding9\AgentReady\Controller;
 
 use Coding9\AgentReady\A2a\A2aServer;
+use Coding9\AgentReady\Http\CorsResolver;
 use Coding9\AgentReady\Service\AgentConfig;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -43,7 +44,11 @@ class A2aController extends AbstractController
 
         $response = new JsonResponse($this->server->handle($payload, $sc));
         $response->headers->set('Cache-Control', 'no-store');
-        $response->headers->set('Access-Control-Allow-Origin', '*');
+        $allow = CorsResolver::resolve($request, $this->config->getCorsAllowedOrigins($sc));
+        if ($allow !== null) {
+            $response->headers->set('Access-Control-Allow-Origin', $allow);
+            $response->headers->set('Vary', 'Origin');
+        }
         return $response;
     }
 

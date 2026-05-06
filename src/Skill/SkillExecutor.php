@@ -24,6 +24,7 @@ class SkillExecutor
     public function __construct(
         private readonly StoreApiClient $storeApi,
         private readonly SalesChannelKeyResolver $keys,
+        private readonly \Coding9\AgentReady\Service\AgentConfig $config,
     ) {
     }
 
@@ -53,7 +54,7 @@ class SkillExecutor
             SkillRegistry::ID_MANAGE_CART => $this->manageCart($args, $accessKey),
             SkillRegistry::ID_CUSTOMER_LOGIN => $this->customerLogin($args, $accessKey),
             SkillRegistry::ID_CUSTOMER_LOGOUT => $this->customerLogout($args, $accessKey),
-            SkillRegistry::ID_PLACE_ORDER => $this->placeOrder($args, $accessKey),
+            SkillRegistry::ID_PLACE_ORDER => $this->placeOrder($args, $accessKey, $salesChannelId),
             default => SkillResult::error('unknown_skill', 'no executor for skill: ' . $skill->id, 501),
         };
     }
@@ -115,8 +116,34 @@ class SkillExecutor
     /**
      * @param array<string, mixed> $args
      */
-    private function placeOrder(array $args, string $accessKey): SkillResult
+    private function placeOrder(array $args, string $accessKey, ?string $salesChannelId): SkillResult
     {
+        $token = (string) $args['contextToken'];
+        $limit = $this->config->getPlaceOrderMaxAmount($salesChannelId);
+
+        if ($limit > 0.0) {
+            $cart = $this->storeApi->call('GET', '/store-api/checkout/cart', [], $accessKey, $token);
+            if (!$cart->isSuccess()) {
+                return $this->errorFromStoreApi($cart);
+            }
+            $cartData = $cart->decode() ?? [];
+            $total = $cartData['price']['totalPrice'] ?? null;
+            if (!is_numeric($total)) {
+                return SkillResult::error(
+                    'cart_total_unavailable',
+                    'Cart total could not be determined; refusing to place order under a limit policy.',
+                    502,
+                );
+            }
+            if ((float) $total > $limit) {
+                return SkillResult::error(
+                    'order_amount_exceeds_limit',
+                    sprintf('Cart total %.2f exceeds the configured place-order limit %.2f.', (float) $total, $limit),
+                    403,
+                );
+            }
+        }
+
         $body = ['tos' => $args['tos'] ?? true];
 
         $response = $this->storeApi->call(
@@ -124,7 +151,7 @@ class SkillExecutor
             '/store-api/checkout/order',
             $body,
             $accessKey,
-            (string) $args['contextToken'],
+            $token,
         );
 
         if (!$response->isSuccess()) {

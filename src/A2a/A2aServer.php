@@ -2,6 +2,7 @@
 
 namespace Coding9\AgentReady\A2a;
 
+use Coding9\AgentReady\Service\AgentConfig;
 use Coding9\AgentReady\Skill\SkillExecutor;
 use Coding9\AgentReady\Skill\SkillInputException;
 use Coding9\AgentReady\Skill\SkillRegistry;
@@ -24,6 +25,7 @@ class A2aServer
     public function __construct(
         private readonly SkillRegistry $registry,
         private readonly SkillExecutor $executor,
+        private readonly AgentConfig $config,
     ) {
     }
 
@@ -96,8 +98,8 @@ class A2aServer
         }
 
         $skill = $this->registry->get($skillId);
-        if ($skill === null) {
-            throw new SkillInputException('unknown skill: ' . $skillId);
+        if ($skill === null || !$this->config->isSkillEnabled($skill->id, true, $salesChannelId)) {
+            throw new SkillInputException('unknown or disabled skill: ' . $skillId);
         }
 
         $result = $this->executor->execute($skill, $arguments, $salesChannelId);

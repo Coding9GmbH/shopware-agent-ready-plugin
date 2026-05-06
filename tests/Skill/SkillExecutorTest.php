@@ -277,7 +277,11 @@ class SkillExecutorTest extends TestCase
 
     public function testReturns503WhenSalesChannelKeyMissing(): void
     {
-        $executor = new SkillExecutor(new FakeStoreApiClient(), new StaticSalesChannelKeyResolver(null));
+        $executor = new SkillExecutor(
+            new FakeStoreApiClient(),
+            new StaticSalesChannelKeyResolver(null),
+            new \Coding9\AgentReady\Service\AgentConfig(new \Coding9\AgentReady\Tests\Support\ArrayConfigReader()),
+        );
         $result = $executor->execute(
             $this->registry()->get('search-products'),
             ['query' => 'x'],
@@ -289,9 +293,13 @@ class SkillExecutorTest extends TestCase
         self::assertSame(503, $result->status);
     }
 
-    private function executor(FakeStoreApiClient $client): SkillExecutor
+    private function executor(FakeStoreApiClient $client, ?\Coding9\AgentReady\Tests\Support\ArrayConfigReader $reader = null): SkillExecutor
     {
-        return new SkillExecutor($client, new StaticSalesChannelKeyResolver());
+        return new SkillExecutor(
+            $client,
+            new StaticSalesChannelKeyResolver(),
+            new \Coding9\AgentReady\Service\AgentConfig($reader ?? new \Coding9\AgentReady\Tests\Support\ArrayConfigReader()),
+        );
     }
 
     private function registry(): SkillRegistry

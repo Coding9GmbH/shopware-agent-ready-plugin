@@ -2,6 +2,7 @@
 
 namespace Coding9\AgentReady\Controller;
 
+use Coding9\AgentReady\Http\CorsResolver;
 use Coding9\AgentReady\Mcp\McpServer;
 use Coding9\AgentReady\Service\AgentConfig;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -42,7 +43,7 @@ class McpController extends AbstractController
 
         $payload = json_decode((string) $request->getContent(), true);
         if (!is_array($payload)) {
-            return $this->jsonRpcError(null, -32700, 'parse error');
+            return $this->jsonRpcError($request, null, -32700, 'parse error');
         }
 
         if (array_is_list($payload)) {
@@ -58,30 +59,43 @@ class McpController extends AbstractController
                 }
             }
             if ($responses === []) {
-                return new Response('', 204);
+                $empty = new Response('', 204);
+                $this->applyCors($request, $empty);
+                return $empty;
             }
-            return $this->jsonResponse($responses);
+            return $this->jsonResponse($request, $responses);
         }
 
         $response = $this->server->handle($payload, $sc);
         if ($response === null) {
-            return new Response('', 204);
+            $empty = new Response('', 204);
+            $this->applyCors($request, $empty);
+            return $empty;
         }
-        return $this->jsonResponse($response);
+        return $this->jsonResponse($request, $response);
     }
 
     /** @param array<int|string, mixed> $payload */
-    private function jsonResponse(array $payload): JsonResponse
+    private function jsonResponse(Request $request, array $payload): JsonResponse
     {
         $response = new JsonResponse($payload);
         $response->headers->set('Cache-Control', 'no-store');
-        $response->headers->set('Access-Control-Allow-Origin', '*');
+        $this->applyCors($request, $response);
         return $response;
     }
 
-    private function jsonRpcError(int|string|null $id, int $code, string $message): JsonResponse
+    private function jsonRpcError(Request $request, int|string|null $id, int $code, string $message): JsonResponse
     {
-        return $this->jsonResponse($this->errorBody($id, $code, $message));
+        return $this->jsonResponse($request, $this->errorBody($id, $code, $message));
+    }
+
+    private function applyCors(Request $request, Response $response): void
+    {
+        $allow = CorsResolver::resolve($request, $this->config->getCorsAllowedOrigins($this->salesChannelId($request)));
+        if ($allow !== null) {
+            $response->headers->set('Access-Control-Allow-Origin', $allow);
+            $response->headers->set('Vary', 'Origin');
+        }
     }
 
     /** @return array<string, mixed> */

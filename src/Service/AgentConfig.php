@@ -144,4 +144,55 @@ class AgentConfig
     {
         return $this->bool('enableA2aServer', true, $salesChannelId);
     }
+
+    /**
+     * Per-skill enable toggle. Disabled skills are hidden from
+     * /.well-known/agent-skills, agent-card.json and MCP tools/list, and
+     * tools/call returns method-not-found instead of executing them.
+     *
+     * The default is the value of the second argument: agent-readiness
+     * features default to ON, but operators flip the more sensitive ones
+     * (customer-login, place-order, …) off when they're not needed.
+     */
+    public function isSkillEnabled(string $skillId, bool $default = true, ?string $salesChannelId = null): bool
+    {
+        $key = 'enableSkill_' . str_replace('-', '_', $skillId);
+        return $this->bool($key, $default, $salesChannelId);
+    }
+
+    /**
+     * Maximum amount the place-order skill is allowed to commit, in the
+     * sales-channel currency's main unit (e.g. 250.0 = 250 EUR). Returns
+     * 0.0 when no cap is configured (= unlimited).
+     */
+    public function getPlaceOrderMaxAmount(?string $salesChannelId = null): float
+    {
+        $value = $this->string('placeOrderMaxAmount', '', $salesChannelId);
+        if ($value === '') {
+            return 0.0;
+        }
+        return is_numeric($value) ? (float) $value : 0.0;
+    }
+
+    /**
+     * CORS origin allowlist for the /mcp and /a2a endpoints. Returns:
+     *
+     *   - empty list  → no CORS header is emitted (safest default;
+     *                   server-side agent hosts don't need it).
+     *   - ['*']       → wildcard echoed back; convenient for development
+     *                   but lets any browser tab POST credentials.
+     *   - ['https://a.example', 'https://b.example']
+     *                 → only matching Origin headers get a CORS response.
+     *
+     * @return array<int, string>
+     */
+    public function getCorsAllowedOrigins(?string $salesChannelId = null): array
+    {
+        $raw = $this->string('corsAllowedOrigins', '', $salesChannelId);
+        if ($raw === '') {
+            return [];
+        }
+        $items = preg_split('/[\s,]+/', $raw) ?: [];
+        return array_values(array_filter(array_map('trim', $items), static fn ($v) => $v !== ''));
+    }
 }

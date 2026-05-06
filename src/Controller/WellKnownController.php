@@ -221,10 +221,22 @@ class WellKnownController extends AbstractController
                 'pushNotifications' => false,
                 'stateTransitionHistory' => false,
             ],
-            'skills' => $this->skills->asA2aSkillList(),
+            'skills' => $this->enabledA2aSkills($sc),
         ];
 
         return $this->jsonWithType($payload, 'application/json');
+    }
+
+    /** @return array<int, array{id: string, name: string, description: string, tags: array<int, string>}> */
+    private function enabledA2aSkills(?string $sc): array
+    {
+        $out = [];
+        foreach ($this->skills->asA2aSkillList() as $skill) {
+            if ($this->config->isSkillEnabled($skill['id'], true, $sc)) {
+                $out[] = $skill;
+            }
+        }
+        return $out;
     }
 
     #[Route(
@@ -235,7 +247,8 @@ class WellKnownController extends AbstractController
     )]
     public function agentSkillsIndex(Request $request): Response
     {
-        if (!$this->config->isAgentSkillsIndexEnabled($this->salesChannelId($request))) {
+        $sc = $this->salesChannelId($request);
+        if (!$this->config->isAgentSkillsIndexEnabled($sc)) {
             return $this->disabled();
         }
 
@@ -243,6 +256,9 @@ class WellKnownController extends AbstractController
 
         $skills = [];
         foreach ($this->skills->all() as $skill) {
+            if (!$this->config->isSkillEnabled($skill->id, true, $sc)) {
+                continue;
+            }
             $skills[] = [
                 'name' => $skill->id,
                 'type' => 'task',
@@ -269,12 +285,13 @@ class WellKnownController extends AbstractController
     )]
     public function agentSkillMarkdown(Request $request, string $slug): Response
     {
-        if (!$this->config->isAgentSkillsIndexEnabled($this->salesChannelId($request))) {
+        $sc = $this->salesChannelId($request);
+        if (!$this->config->isAgentSkillsIndexEnabled($sc)) {
             return $this->disabled();
         }
 
         $skill = $this->skills->get($slug);
-        if ($skill === null) {
+        if ($skill === null || !$this->config->isSkillEnabled($skill->id, true, $sc)) {
             return new Response('not found', 404, ['Content-Type' => 'text/plain']);
         }
 

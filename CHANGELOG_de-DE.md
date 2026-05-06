@@ -1,3 +1,65 @@
+# 0.1.0
+
+Erstes produktionsreifes Release. Das Plugin geht von „Discovery-Showcase"
+zu einem plug-and-play-fähigen MCP/A2A-Server mit einer gehärteten
+Skill-Surface für KI-Agent-Commerce auf Shopware 6.
+
+**MCP- / A2A-Runtime-Endpunkte**
+
+- `POST /mcp` — JSON-RPC-2.0-Server mit `initialize`, `tools/list`,
+  `tools/call`, `ping` und Notifications. Unterstützt Batched Requests.
+- `POST /a2a` — A2A-`message/send`-Runtime, teilt das Skill-Set mit MCP.
+- Beide sind **plug-and-play** für Claude Desktop, Cursor und das OpenAI
+  Agents SDK: URL eintragen, der Agent-Host kann sofort Produkte
+  suchen, Warenkörbe verwalten, Kunden einloggen und Bestellungen
+  platzieren.
+
+**Skill-Set (echter Store-API-Proxy, keine Dispatch-Anweisungen)**
+
+- `search-products`, `get-product` (Read-only-Katalog)
+- `create-context`, `get-cart`, `manage-cart` (Cart-Sessions)
+- `customer-login`, `customer-logout` (Auth)
+- `place-order` (löst echte Bestellungen aus)
+
+Skill-Ausführung läuft in-process per Symfony-`SUB_REQUEST` gegen
+`/store-api/...`. Damit greifen alle Shopware-Standard-Middlewares
+(Sales-Channel-Auflösung, Cart-Hydration, Rate-Limiting,
+Kunden-Auth). Der `sw-access-key` wird automatisch aus dem aufgelösten
+Sales-Channel ermittelt.
+
+**Markdown-Anreicherung für Produktdetailseiten**
+
+Der `MarkdownNegotiationSubscriber` extrahiert jetzt Schema.org
+`Product`/`Offer`/`BreadcrumbList` JSON-LD von PDPs und stellt einen
+kompakten Kaufentscheidungs-Header (Name, Breadcrumb, SKU, Marke,
+Preis, Verfügbarkeit, Bild, Beschreibung) dem generischen HTML→Markdown
+voran.
+
+**Härtung (neue Admin-Karten)**
+
+- *Skill-Schalter* — jeder Skill ist einzeln deaktivierbar. Read-only-
+  Katalog-Deployments lassen nur `search-products` + `get-product` an.
+- `placeOrderMaxAmount` — server-seitiger Bestelllimit-Check im
+  `SkillExecutor`. Vor dem Aufruf wird der Cart geladen, `totalPrice`
+  geprüft; bei Überschreitung `403 order_amount_exceeds_limit`.
+- `corsAllowedOrigins` — `/mcp` und `/a2a` senden den
+  `Access-Control-Allow-Origin`-Header nicht mehr per Default als `*`.
+  Standard ist leer (kein CORS-Header, sicher für Server-zu-Server-
+  Agent-Hosts). Konkrete Origins (z.B. `https://claude.ai`) eintragen
+  für Browser-Hosts, `*` nur in der Entwicklung.
+
+**Entfernt**
+
+- DCR-Stub (`POST /api/oauth/register`). Lieferte immer 501, brachte
+  keinen Wert. `registration_endpoint` aus
+  `oauth-authorization-server`-Metadata entfernt.
+
+**Tests**
+
+- 133 PHPUnit-Tests, von Shopware entkoppelt über die Interfaces
+  `StoreApiClient` + `SalesChannelKeyResolver` — läuft in Millisekunden.
+- PHPStan clean.
+
 # 0.0.5
 
 Spec-Compliance-Fixes für robots.txt und MCP Server Card.
