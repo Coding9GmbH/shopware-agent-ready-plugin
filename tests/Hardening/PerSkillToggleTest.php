@@ -15,7 +15,7 @@ class PerSkillToggleTest extends TestCase
 {
     public function testDisabledSkillIsHiddenFromToolsList(): void
     {
-        $config = $this->config(['Coding9AgentReady.config.enableSkill_place_order' => false]);
+        $config = $this->config(['Coding9AgentReady.config.enableSkillPlaceOrder' => false]);
         $server = $this->server($config);
 
         $response = $server->handle([
@@ -31,7 +31,7 @@ class PerSkillToggleTest extends TestCase
 
     public function testDisabledSkillReturnsMethodNotFoundOnToolsCall(): void
     {
-        $config = $this->config(['Coding9AgentReady.config.enableSkill_customer_login' => false]);
+        $config = $this->config(['Coding9AgentReady.config.enableSkillCustomerLogin' => false]);
         $server = $this->server($config);
 
         $response = $server->handle([

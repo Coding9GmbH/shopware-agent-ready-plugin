@@ -195,50 +195,50 @@
         <title lang="de-DE">Skill-Schalter</title>
 
         <input-field type="bool">
-            <name>enableSkill_search_products</name>
+            <name>enableSkillSearchProducts</name>
             <label>Expose skill: search-products</label>
             <defaultValue>true</defaultValue>
         </input-field>
 
         <input-field type="bool">
-            <name>enableSkill_get_product</name>
+            <name>enableSkillGetProduct</name>
             <label>Expose skill: get-product</label>
             <defaultValue>true</defaultValue>
         </input-field>
 
         <input-field type="bool">
-            <name>enableSkill_create_context</name>
+            <name>enableSkillCreateContext</name>
             <label>Expose skill: create-context</label>
             <defaultValue>true</defaultValue>
         </input-field>
 
         <input-field type="bool">
-            <name>enableSkill_get_cart</name>
+            <name>enableSkillGetCart</name>
             <label>Expose skill: get-cart</label>
             <defaultValue>true</defaultValue>
         </input-field>
 
         <input-field type="bool">
-            <name>enableSkill_manage_cart</name>
+            <name>enableSkillManageCart</name>
             <label>Expose skill: manage-cart</label>
             <defaultValue>true</defaultValue>
         </input-field>
 
         <input-field type="bool">
-            <name>enableSkill_customer_login</name>
+            <name>enableSkillCustomerLogin</name>
             <label>Expose skill: customer-login (passwords flow through the agent host — disable if not needed)</label>
             <label lang="de-DE">Skill freischalten: customer-login (Passwörter fließen über den Agent-Host — deaktivieren wenn nicht benötigt)</label>
             <defaultValue>true</defaultValue>
         </input-field>
 
         <input-field type="bool">
-            <name>enableSkill_customer_logout</name>
+            <name>enableSkillCustomerLogout</name>
             <label>Expose skill: customer-logout</label>
             <defaultValue>true</defaultValue>
         </input-field>
 
         <input-field type="bool">
-            <name>enableSkill_place_order</name>
+            <name>enableSkillPlaceOrder</name>
             <label>Expose skill: place-order (commits real orders — review limits below first)</label>
             <label lang="de-DE">Skill freischalten: place-order (löst echte Bestellungen aus — Limits unten prüfen)</label>
             <defaultValue>true</defaultValue>

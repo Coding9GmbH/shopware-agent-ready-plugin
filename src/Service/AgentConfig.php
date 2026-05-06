@@ -156,7 +156,7 @@ class AgentConfig
      */
     public function isSkillEnabled(string $skillId, bool $default = true, ?string $salesChannelId = null): bool
     {
-        $key = 'enableSkill_' . str_replace('-', '_', $skillId);
+        $key = 'enableSkill' . str_replace(' ', '', ucwords(str_replace('-', ' ', $skillId)));
         return $this->bool($key, $default, $salesChannelId);
     }
 
