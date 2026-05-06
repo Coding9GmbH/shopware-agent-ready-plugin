@@ -68,6 +68,13 @@
             <tag name="kernel.event_subscriber"/>
         </service>
 
+        <!-- Exempt MCP/A2A skill sub-requests from Shopware's RouteScopeListener.
+             See CrossScopeSubRequestWhitelist for the reasoning. -->
+        <service id="Coding9\AgentReady\Framework\Routing\CrossScopeSubRequestWhitelist">
+            <argument type="service" id="request_stack"/>
+            <tag name="shopware.route_scope_whitelist"/>
+        </service>
+
         <!-- Controllers -->
         <service id="Coding9\AgentReady\Controller\WellKnownController" public="true">
             <argument type="service" id="Coding9\AgentReady\Service\AgentConfig"/>
