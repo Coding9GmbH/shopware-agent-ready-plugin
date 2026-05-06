@@ -19,7 +19,7 @@ class AgentConfigTest extends TestCase
     public function testStringDefaults(): void
     {
         $cfg = new AgentConfig(new ArrayConfigReader());
-        self::assertSame('/docs/api', $cfg->getServiceDocPath());
+        self::assertSame('/store-api/_info/openapi3.json', $cfg->getServiceDocPath());
         self::assertSame('Shopware Storefront Agent', $cfg->getA2aAgentName());
         self::assertSame('', $cfg->getMcpServerEndpoint());
     }
@@ -53,6 +53,6 @@ class AgentConfigTest extends TestCase
             'Coding9AgentReady.config.serviceDocPath' => '',
         ]);
         $cfg = new AgentConfig($reader);
-        self::assertSame('/docs/api', $cfg->getServiceDocPath());
+        self::assertSame('/store-api/_info/openapi3.json', $cfg->getServiceDocPath());
     }
 }

@@ -63,6 +63,11 @@
             <tag name="kernel.event_subscriber"/>
         </service>
 
+        <service id="Coding9\AgentReady\Subscriber\RobotsTxtSubscriber">
+            <argument type="service" id="Coding9\AgentReady\Service\AgentConfig"/>
+            <tag name="kernel.event_subscriber"/>
+        </service>
+
         <!-- Controllers -->
         <service id="Coding9\AgentReady\Controller\WellKnownController" public="true">
             <argument type="service" id="Coding9\AgentReady\Service\AgentConfig"/>

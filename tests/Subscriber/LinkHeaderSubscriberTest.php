@@ -25,7 +25,7 @@ class LinkHeaderSubscriberTest extends TestCase
         $combined = implode(', ', $headers);
 
         self::assertStringContainsString('</.well-known/api-catalog>; rel="api-catalog"', $combined);
-        self::assertStringContainsString('</docs/api>; rel="service-doc"', $combined);
+        self::assertStringContainsString('</store-api/_info/openapi3.json>; rel="service-doc"', $combined);
         self::assertStringContainsString('</.well-known/mcp/server-card.json>; rel="mcp-server-card"', $combined);
         self::assertStringContainsString('</.well-known/agent-card.json>; rel="a2a-agent-card"', $combined);
         self::assertStringContainsString('</.well-known/agent-skills/index.json>; rel="agent-skills"', $combined);
@@ -96,7 +96,7 @@ class LinkHeaderSubscriberTest extends TestCase
         $event = $this->event('/', 'frontend.home.page');
         $sub->onResponse($event);
         $combined = implode(', ', $event->getResponse()->headers->all('link'));
-        self::assertStringContainsString('</docs/api>; rel="service-doc"', $combined);
+        self::assertStringContainsString('</store-api/_info/openapi3.json>; rel="service-doc"', $combined);
     }
 
     public function testIndividualEndpointsCanBeDisabled(): void
