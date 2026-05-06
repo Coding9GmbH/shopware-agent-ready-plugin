@@ -20,6 +20,26 @@ class RobotsTxtControllerTest extends TestCase
         self::assertStringContainsString('Disallow: /checkout/', $body);
     }
 
+    public function testContentSignalAppearsInsideUserAgentGroup(): void
+    {
+        // Per draft-romm-aipref-contentsignals, Content-Signal is a record
+        // member that must follow a User-agent line so it is associated with
+        // that user agent. An orphan Content-Signal preceding any User-agent
+        // group is ignored by Cloudflare's validator and other parsers.
+        $controller = new RobotsTxtController(new AgentConfig(new ArrayConfigReader()));
+        $body = $controller->build();
+
+        $userAgentPos = strpos($body, 'User-agent: *');
+        $signalPos = strpos($body, 'Content-Signal:');
+        self::assertNotFalse($userAgentPos);
+        self::assertNotFalse($signalPos);
+        self::assertGreaterThan(
+            $userAgentPos,
+            $signalPos,
+            'Content-Signal must appear after User-agent: * to be grouped with it'
+        );
+    }
+
     public function testRespectsCustomSignals(): void
     {
         $reader = new ArrayConfigReader([

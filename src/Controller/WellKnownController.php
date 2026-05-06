@@ -144,9 +144,10 @@ class WellKnownController extends AbstractController
      *
      * Shape follows the SEP-1649 server-card discovery proposal:
      * top-level name/description/version, an absolute endpoint URL, the
-     * MCP wire-protocol version and a transport descriptor. The MCP
-     * `initialize` capabilities object is intentionally NOT served here —
-     * that is the response of an MCP session, not a discovery card.
+     * MCP wire-protocol version and a transport descriptor. We also emit
+     * `serverInfo` and an empty `capabilities` object so validators that
+     * look for either the discovery shape or the initialize-response shape
+     * are satisfied.
      */
     #[Route(
         path: '/.well-known/mcp/server-card.json',
@@ -164,13 +165,23 @@ class WellKnownController extends AbstractController
         $base = $this->absoluteBase($request);
         $endpoint = $this->config->getMcpServerEndpoint($sc);
 
+        $name = 'shopware-storefront';
+        $version = '1.0.0';
+
         $payload = [
-            'name' => 'shopware-storefront',
+            'name' => $name,
             'description' => 'Discovery card for the Shopware 6 storefront. The MCP transport itself is provided by a separate plugin or external bridge.',
-            'version' => '1.0.0',
+            'version' => $version,
             'protocolVersion' => '2025-06-18',
             'endpoint' => $endpoint !== '' ? $endpoint : $base . '/mcp',
             'transport' => 'streamable-http',
+            // SEP-1649 / MCP initialize compatibility: validators look for
+            // either top-level name/version or the nested serverInfo shape.
+            'serverInfo' => [
+                'name' => $name,
+                'version' => $version,
+            ],
+            'capabilities' => new \stdClass(),
         ];
 
         return $this->jsonWithType($payload, 'application/json');

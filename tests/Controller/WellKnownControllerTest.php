@@ -89,14 +89,18 @@ class WellKnownControllerTest extends TestCase
         $response = $controller->mcpServerCard($this->request('https://shop.example/'));
         $payload = json_decode((string) $response->getContent(), true, flags: JSON_THROW_ON_ERROR);
 
-        // SEP-1649 discovery shape: top-level name/version/endpoint/protocolVersion/transport,
-        // NOT the nested initialize-response shape.
+        // SEP-1649 discovery shape with initialize-response compatibility:
+        // both top-level name/version and nested serverInfo.name/version
+        // so validators that expect either form succeed.
         self::assertSame('shopware-storefront', $payload['name']);
         self::assertSame('https://shop.example/mcp', $payload['endpoint']);
         self::assertArrayHasKey('protocolVersion', $payload);
         self::assertArrayHasKey('transport', $payload);
         self::assertArrayHasKey('version', $payload);
-        self::assertArrayNotHasKey('serverInfo', $payload, 'serverInfo is initialize-response, not discovery');
+        self::assertArrayHasKey('serverInfo', $payload);
+        self::assertSame('shopware-storefront', $payload['serverInfo']['name']);
+        self::assertSame('1.0.0', $payload['serverInfo']['version']);
+        self::assertArrayHasKey('capabilities', $payload);
     }
 
     public function testMcpServerCardHonoursConfiguredEndpoint(): void
