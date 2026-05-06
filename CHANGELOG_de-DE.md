@@ -1,3 +1,17 @@
+# 0.0.5
+
+Spec-Compliance-Fixes für robots.txt und MCP Server Card.
+
+- robots.txt: `Content-Signal` steht jetzt innerhalb der `User-agent: *`
+  Gruppe, damit es gemäß draft-romm-aipref-contentsignals dieser
+  Gruppe zugeordnet wird. Validatoren (inkl. Cloudflare) ignorieren
+  eine `Content-Signal`-Zeile, die vor jeder User-agent-Gruppe steht.
+- `/.well-known/mcp/server-card.json`: liefert jetzt zusätzlich ein
+  verschachteltes `serverInfo` `{name, version}` neben den bestehenden
+  Top-Level-Feldern sowie ein leeres `capabilities`-Objekt, damit
+  SEP-1649-Validatoren sowohl die Discovery-Form als auch die
+  Initialize-Response-Form akzeptieren.
+
 # 0.0.4
 
 Fix für die CI/Release-Pipeline.

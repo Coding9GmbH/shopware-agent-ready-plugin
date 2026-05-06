@@ -3,7 +3,7 @@
     "description": "Make your Shopware 6 store agent-ready: Link headers, Markdown negotiation, Content Signals, well-known endpoints (API catalog, OAuth/OIDC, MCP, A2A, Agent Skills) and WebMCP.",
     "type": "shopware-platform-plugin",
     "license": "MIT",
-    "version": "0.0.4",
+    "version": "0.0.5",
     "keywords": [
         "shopware",
         "shopware6",

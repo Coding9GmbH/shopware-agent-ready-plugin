@@ -254,6 +254,6 @@ The pipeline:
   [`Coding9GmbH/shopware-agentic-team`](https://github.com/Coding9GmbH/shopware-agentic-team)
   Claude Code skill pack — `shopware-plugin-dev`, `shopware-reviewer` and
   `shopware-store-publisher` shaped large parts of the conventions used here.
-- Open-sourced and maintained by [coding9 GmbH](https://coding9.com).
+- Open-sourced and maintained by [coding9 GmbH](https://coding9.de).
 
 Pull requests welcome.
