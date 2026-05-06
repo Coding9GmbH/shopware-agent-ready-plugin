@@ -31,6 +31,7 @@ class LinkHeaderSubscriberTest extends TestCase
         self::assertStringContainsString('</.well-known/agent-skills/index.json>; rel="agent-skills"', $combined);
         self::assertStringContainsString('</.well-known/oauth-authorization-server>; rel="oauth-authorization-server"', $combined);
         self::assertStringContainsString('</.well-known/oauth-protected-resource>; rel="oauth-protected-resource"', $combined);
+        self::assertStringContainsString('</llms.txt>; rel="llms-txt"', $combined);
     }
 
     public function testDoesNotAddHeadersWhenDisabled(): void

@@ -1,3 +1,11 @@
+# 0.0.2
+
+- `/llms.txt` und `/llms-full.txt` ([llmstxt.org](https://llmstxt.org/))
+  mit automatisch generiertem Discovery-Index, der auf alle aktivierten
+  /.well-known/* Endpunkte, Sitemap und robots.txt verweist.
+- Neue Ressource per `Link: </llms.txt>; rel="llms-txt"` Header beworben.
+- Admin-Config: Aktivieren/Deaktivieren + eigener Shop-Name / Kurzbeschreibung.
+
 # 0.0.1
 
 - Erstveröffentlichung.

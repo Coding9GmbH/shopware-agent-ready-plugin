@@ -20,6 +20,7 @@ shop starts speaking the protocols agents already understand.
 | A2A Agent Card | [a2a-protocol.org](https://a2a-protocol.org/latest/specification/) | `/.well-known/agent-card.json` |
 | Agent Skills index | [agent-skills-discovery-rfc](https://github.com/cloudflare/agent-skills-discovery-rfc) | `/.well-known/agent-skills/index.json` |
 | WebMCP | [webmachinelearning/webmcp](https://webmachinelearning.github.io/webmcp/) | `navigator.modelContext.provideContext()` |
+| llms.txt | [llmstxt.org](https://llmstxt.org/) | `/llms.txt`, `/llms-full.txt` |
 
 ## Requirements
 

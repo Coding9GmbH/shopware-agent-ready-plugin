@@ -111,6 +111,25 @@ class AgentConfig
         return $this->bool('enableAgentSkillsIndex', true, $salesChannelId);
     }
 
+    public function isLlmsTxtEnabled(?string $salesChannelId = null): bool
+    {
+        return $this->bool('enableLlmsTxt', true, $salesChannelId);
+    }
+
+    public function getSiteName(?string $salesChannelId = null): string
+    {
+        return $this->string('siteName', '', $salesChannelId);
+    }
+
+    public function getSiteSummary(?string $salesChannelId = null): string
+    {
+        return $this->string(
+            'siteSummary',
+            'Shopware 6 storefront with AI-agent discovery enabled.',
+            $salesChannelId
+        );
+    }
+
     public function isWebMcpEnabled(?string $salesChannelId = null): bool
     {
         return $this->bool('enableWebMcp', true, $salesChannelId);

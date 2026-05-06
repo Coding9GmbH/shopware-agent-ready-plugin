@@ -89,6 +89,10 @@ class LinkHeaderSubscriber implements EventSubscriberInterface
             $links[] = '</.well-known/oauth-protected-resource>; rel="oauth-protected-resource"';
         }
 
+        if ($this->config->isLlmsTxtEnabled($salesChannelId)) {
+            $links[] = '</llms.txt>; rel="llms-txt"';
+        }
+
         return $links;
     }
 

@@ -1,3 +1,11 @@
+# 0.0.2
+
+- Add `/llms.txt` and `/llms-full.txt` ([llmstxt.org](https://llmstxt.org/))
+  with auto-generated discovery index pointing at every enabled
+  /.well-known/* endpoint, sitemap and robots.txt.
+- Advertise the new resource via `Link: </llms.txt>; rel="llms-txt"` header.
+- New admin config: enable/disable + custom site name / summary.
+
 # 0.0.1
 
 - Initial release.

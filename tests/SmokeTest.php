@@ -93,7 +93,7 @@ class SmokeTest extends TestCase
 
     public function testReleaseZipContainsMandatoryShopwareArtefacts(): void
     {
-        $zip = __DIR__ . '/../.build/Coding9AgentReady-0.0.1.zip';
+        $zip = __DIR__ . '/../.build/Coding9AgentReady-0.0.2.zip';
         if (!file_exists($zip)) {
             self::markTestSkipped('release zip not built yet (run `make zip` first)');
         }

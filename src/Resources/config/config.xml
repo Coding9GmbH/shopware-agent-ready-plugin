@@ -135,6 +135,31 @@
     </card>
 
     <card>
+        <title>llms.txt</title>
+        <title lang="de-DE">llms.txt</title>
+
+        <input-field type="bool">
+            <name>enableLlmsTxt</name>
+            <label>Publish /llms.txt and /llms-full.txt</label>
+            <label lang="de-DE">/llms.txt und /llms-full.txt veröffentlichen</label>
+            <defaultValue>true</defaultValue>
+        </input-field>
+
+        <input-field type="text">
+            <name>siteName</name>
+            <label>Site name (defaults to the sales channel hostname)</label>
+            <label lang="de-DE">Shop-Name (Standard: Hostname des Sales Channels)</label>
+        </input-field>
+
+        <input-field type="textarea">
+            <name>siteSummary</name>
+            <label>Short summary used as the llms.txt blockquote</label>
+            <label lang="de-DE">Kurzbeschreibung für das llms.txt Blockquote</label>
+            <defaultValue>Shopware 6 storefront with AI-agent discovery enabled.</defaultValue>
+        </input-field>
+    </card>
+
+    <card>
         <title>WebMCP</title>
         <title lang="de-DE">WebMCP</title>
 
