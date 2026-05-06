@@ -29,15 +29,6 @@
             <argument type="service" id="Coding9\AgentReady\Skill\SkillRegistry"/>
         </service>
 
-        <service id="Coding9\AgentReady\Http\SymfonyHttpClient">
-            <argument type="service" id="Symfony\Contracts\HttpClient\HttpClientInterface"/>
-        </service>
-        <service id="Coding9\AgentReady\Http\HttpClient" alias="Coding9\AgentReady\Http\SymfonyHttpClient"/>
-
-        <service id="Coding9\AgentReady\X402\X402Verifier">
-            <argument type="service" id="Coding9\AgentReady\Http\HttpClient"/>
-        </service>
-
         <!-- Subscribers -->
         <service id="Coding9\AgentReady\Subscriber\LinkHeaderSubscriber">
             <argument type="service" id="Coding9\AgentReady\Service\AgentConfig"/>
@@ -79,14 +70,6 @@
 
         <service id="Coding9\AgentReady\Controller\DcrController" public="true">
             <argument type="service" id="Coding9\AgentReady\Service\AgentConfig"/>
-            <call method="setContainer">
-                <argument type="service" id="service_container"/>
-            </call>
-        </service>
-
-        <service id="Coding9\AgentReady\Controller\X402Controller" public="true">
-            <argument type="service" id="Coding9\AgentReady\Service\AgentConfig"/>
-            <argument type="service" id="Coding9\AgentReady\X402\X402Verifier"/>
             <call method="setContainer">
                 <argument type="service" id="service_container"/>
             </call>

@@ -149,39 +149,4 @@ class AgentConfig
     {
         return $this->bool('enableDcr', true, $salesChannelId);
     }
-
-    public function isX402Enabled(?string $salesChannelId = null): bool
-    {
-        return $this->bool('enableX402', true, $salesChannelId);
-    }
-
-    public function getX402FacilitatorUrl(?string $salesChannelId = null): string
-    {
-        return $this->string('x402FacilitatorUrl', '', $salesChannelId);
-    }
-
-    public function getX402Scheme(?string $salesChannelId = null): string
-    {
-        return $this->string('x402Scheme', 'exact', $salesChannelId);
-    }
-
-    public function getX402Network(?string $salesChannelId = null): string
-    {
-        return $this->string('x402Network', 'base-sepolia', $salesChannelId);
-    }
-
-    public function getX402MaxAmount(?string $salesChannelId = null): string
-    {
-        return $this->string('x402MaxAmount', '1000000', $salesChannelId);
-    }
-
-    public function getX402Asset(?string $salesChannelId = null): string
-    {
-        return $this->string('x402Asset', '0x036CbD53842c5426634e7929541eC2318f3dCF7e', $salesChannelId);
-    }
-
-    public function getX402PayTo(?string $salesChannelId = null): string
-    {
-        return $this->string('x402PayTo', '', $salesChannelId);
-    }
 }

@@ -380,9 +380,7 @@ class SkillRegistry
 
                 Once the order is created, follow up with
                 `POST /store-api/handle-payment` to drive the configured
-                payment handler. Agentic payment flows (x402, Stripe Agent
-                Toolkit, Visa Intelligent Commerce) are not yet wired in
-                this plugin — see `/.well-known/x402` for the demo skeleton.
+                payment handler.
                 MD,
                 dispatch: fn (array $args) => [
                     'kind' => 'http-request',
