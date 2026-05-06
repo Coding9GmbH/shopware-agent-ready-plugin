@@ -46,21 +46,20 @@ class RobotsTxtController extends AbstractController
     {
         $lines = [];
 
+        // Content-Signal must live inside a User-agent group to be associated
+        // with that user agent (draft-romm-aipref-contentsignals §3).
+        $lines[] = 'User-agent: *';
+
         if ($this->config->isContentSignalsEnabled($salesChannelId)) {
             $signals = $this->config->getContentSignals($salesChannelId);
             $parts = [];
             foreach ($signals as $name => $value) {
-                // Defensive: dropdown values today are limited to yes/no, but
-                // strip any line-break-based injection just in case the schema
-                // is ever loosened.
                 $parts[] = $this->oneLine($name) . '=' . $this->oneLine($value);
             }
             $lines[] = '# Content-Signal directives (https://contentsignals.org/)';
             $lines[] = 'Content-Signal: ' . implode(', ', $parts);
-            $lines[] = '';
         }
 
-        $lines[] = 'User-agent: *';
         $lines[] = 'Disallow: /account/';
         $lines[] = 'Disallow: /checkout/';
         $lines[] = 'Disallow: /widgets/';
