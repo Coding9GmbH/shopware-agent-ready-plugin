@@ -175,6 +175,106 @@ class SkillExecutorTest extends TestCase
         self::assertSame([str_repeat('b', 32)], $client->calls[0]['body']['ids']);
     }
 
+    public function testCustomerLoginProxiesAndReturnsRotatedToken(): void
+    {
+        $client = (new FakeStoreApiClient())->queue(new StoreApiResponse(
+            200,
+            (string) json_encode(['contextToken' => 'rotated-token']),
+            'rotated-token',
+        ));
+
+        $result = $this->executor($client)->execute(
+            $this->registry()->get('customer-login'),
+            ['contextToken' => 'tok-x', 'username' => 'a@b.com', 'password' => 'pw'],
+            'sc-1',
+        );
+
+        self::assertFalse($result->isError);
+        self::assertSame('rotated-token', $result->data['contextToken']);
+        self::assertTrue($result->data['loggedIn']);
+
+        self::assertSame('POST', $client->calls[0]['method']);
+        self::assertSame('/store-api/account/login', $client->calls[0]['path']);
+        self::assertSame('tok-x', $client->calls[0]['contextToken']);
+        self::assertSame('a@b.com', $client->calls[0]['body']['username']);
+    }
+
+    public function testCustomerLoginPropagatesAuthErrors(): void
+    {
+        $client = (new FakeStoreApiClient())->queue(new StoreApiResponse(401, (string) json_encode([
+            'errors' => [['title' => 'invalid_credentials', 'detail' => 'Wrong password.']],
+        ])));
+
+        $result = $this->executor($client)->execute(
+            $this->registry()->get('customer-login'),
+            ['contextToken' => 'tok-x', 'username' => 'a@b.com', 'password' => 'nope'],
+            'sc-1',
+        );
+
+        self::assertTrue($result->isError);
+        self::assertSame('invalid_credentials', $result->data['error']);
+    }
+
+    public function testCustomerLogoutSucceedsOn204(): void
+    {
+        $client = (new FakeStoreApiClient())->queue(new StoreApiResponse(204, ''));
+
+        $result = $this->executor($client)->execute(
+            $this->registry()->get('customer-logout'),
+            ['contextToken' => 'tok-x'],
+            'sc-1',
+        );
+
+        self::assertFalse($result->isError);
+        self::assertTrue($result->data['loggedOut']);
+        self::assertSame('/store-api/account/logout', $client->calls[0]['path']);
+    }
+
+    public function testPlaceOrderProxiesAndReturnsOrderSummary(): void
+    {
+        $client = (new FakeStoreApiClient())->queue(new StoreApiResponse(200, (string) json_encode([
+            'id' => 'order-1',
+            'orderNumber' => '10042',
+            'amountTotal' => 99.95,
+            'currency' => ['isoCode' => 'EUR'],
+            'stateMachineState' => ['technicalName' => 'open'],
+            'deepLinkCode' => 'abc',
+        ])));
+
+        $result = $this->executor($client)->execute(
+            $this->registry()->get('place-order'),
+            ['contextToken' => 'tok-x'],
+            'sc-1',
+        );
+
+        self::assertFalse($result->isError);
+        self::assertSame('10042', $result->data['orderNumber']);
+        self::assertSame(99.95, $result->data['amountTotal']);
+        self::assertSame('open', $result->data['stateMachineState']);
+        self::assertSame('EUR', $result->data['currency']);
+
+        self::assertSame('POST', $client->calls[0]['method']);
+        self::assertSame('/store-api/checkout/order', $client->calls[0]['path']);
+        self::assertSame(['tos' => true], $client->calls[0]['body']);
+    }
+
+    public function testPlaceOrderPropagatesUnauthenticatedError(): void
+    {
+        $client = (new FakeStoreApiClient())->queue(new StoreApiResponse(403, (string) json_encode([
+            'errors' => [['title' => 'CHECKOUT__CUSTOMER_NOT_LOGGED_IN', 'detail' => 'Not logged in.']],
+        ])));
+
+        $result = $this->executor($client)->execute(
+            $this->registry()->get('place-order'),
+            ['contextToken' => 'tok-x'],
+            'sc-1',
+        );
+
+        self::assertTrue($result->isError);
+        self::assertSame('CHECKOUT__CUSTOMER_NOT_LOGGED_IN', $result->data['error']);
+        self::assertSame(403, $result->status);
+    }
+
     public function testReturns503WhenSalesChannelKeyMissing(): void
     {
         $executor = new SkillExecutor(new FakeStoreApiClient(), new StaticSalesChannelKeyResolver(null));

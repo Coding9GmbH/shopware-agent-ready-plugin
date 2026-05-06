@@ -203,7 +203,7 @@ agent hosts (Claude Desktop, Cursor, OpenAI Agents SDK, …) can plug in to
 directly. It implements:
 
   - `initialize` — `serverInfo`, protocolVersion, `capabilities.tools`
-  - `tools/list` — five tools described below
+  - `tools/list` — eight tools described below
   - `tools/call` — validates arguments and runs the matching skill against
     Shopware's Store-API in-process, returning the trimmed result
   - `ping`, `notifications/*` — accepted, no-op
@@ -215,13 +215,34 @@ directly. It implements:
 | `create-context` | mint a fresh anonymous cart session | `{contextToken}` |
 | `get-cart` | read the cart owned by `contextToken` | `{lineItems, price, currency}` |
 | `manage-cart` | `add` / `update` / `remove` line items | updated cart |
+| `customer-login` | authenticate the cart session as an existing customer | `{contextToken, loggedIn}` |
+| `customer-logout` | drop customer auth, invalidate the token | `{loggedOut}` |
+| `place-order` | convert the (authenticated) cart into an order | `{orderId, orderNumber, amountTotal, stateMachineState, deepLinkCode}` |
+
+#### End-to-end purchase flow an agent can run
+
+```
+1. create-context        → contextToken
+2. search-products       → product UUIDs
+3. manage-cart (add)     → updated cart
+4. customer-login        → contextToken (authenticated)
+5. place-order           → orderNumber
+6. (out-of-skill) POST /store-api/handle-payment to drive the configured payment handler
+```
 
 Skill execution is in-process: the plugin issues a Symfony `SUB_REQUEST`
 through the kernel against `/store-api/...`, so all standard Shopware
-middleware (sales-channel resolution, cart hydration, rate limiting…)
-applies. The `sw-access-key` is resolved automatically from the sales
-channel that handled the inbound `/mcp` request — operators don't have
-to wire it through.
+middleware (sales-channel resolution, cart hydration, customer
+authentication, rate limiting…) applies. The `sw-access-key` is resolved
+automatically from the sales channel that handled the inbound `/mcp`
+request.
+
+> ⚠️ **Security note on `customer-login`**
+>
+> Passwords flow through the agent host. Only point trusted MCP/A2A
+> clients at this endpoint, and prefer dedicated "agent buyer" customer
+> accounts (with order limits configured in the Shopware admin) over a
+> human customer's primary credentials.
 
 ### A2A server runtime (`POST /a2a`)
 

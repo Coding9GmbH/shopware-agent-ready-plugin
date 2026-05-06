@@ -126,7 +126,8 @@ MD;
         }
         if ($this->config->isAgentSkillsIndexEnabled($salesChannelId)) {
             $discovery[] = "- [Agent skills index]({$base}/.well-known/agent-skills/index.json): "
-                . 'Skills the storefront advertises (search-products, get-product, manage-cart, …).';
+                . 'Skills the storefront advertises (search-products, get-product, '
+                . 'create-context, get-cart, manage-cart, customer-login, customer-logout, place-order).';
         }
         if ($this->config->isOAuthDiscoveryEnabled($salesChannelId)) {
             $discovery[] = "- [OAuth metadata]({$base}/.well-known/oauth-authorization-server): "

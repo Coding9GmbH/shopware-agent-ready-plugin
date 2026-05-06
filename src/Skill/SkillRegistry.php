@@ -21,6 +21,9 @@ class SkillRegistry
     public const ID_CREATE_CONTEXT = 'create-context';
     public const ID_GET_CART = 'get-cart';
     public const ID_MANAGE_CART = 'manage-cart';
+    public const ID_CUSTOMER_LOGIN = 'customer-login';
+    public const ID_CUSTOMER_LOGOUT = 'customer-logout';
+    public const ID_PLACE_ORDER = 'place-order';
 
     private const UUID_PATTERN = '^[a-f0-9]{32}$|^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$';
 
@@ -298,6 +301,154 @@ class SkillRegistry
                 ## Output
 
                 Same shape as get-cart — the updated cart.
+
+                MD,
+            ),
+            new Skill(
+                id: self::ID_CUSTOMER_LOGIN,
+                name: 'Customer login',
+                description: 'Authenticate the cart session as an existing storefront customer. The contextToken keeps its identity but is now logged in.',
+                tags: ['account', 'auth'],
+                inputSchema: [
+                    'type' => 'object',
+                    'required' => ['contextToken', 'username', 'password'],
+                    'properties' => [
+                        'contextToken' => [
+                            'type' => 'string',
+                            'minLength' => 4,
+                        ],
+                        'username' => [
+                            'type' => 'string',
+                            'description' => 'Customer email address.',
+                            'minLength' => 3,
+                        ],
+                        'password' => [
+                            'type' => 'string',
+                            'minLength' => 1,
+                        ],
+                    ],
+                    'additionalProperties' => false,
+                ],
+                body: <<<'MD'
+                # Customer login
+
+                Authenticate an existing cart session as a storefront customer.
+                The same `contextToken` is now bound to the customer; cart and
+                place-order operations will treat it as logged-in.
+
+                ## Input
+
+                ```json
+                {
+                  "contextToken": "...",
+                  "username": "customer@example.com",
+                  "password": "<plain text>"
+                }
+                ```
+
+                ## Security note
+
+                Passwords flow through the agent host. Use trusted MCP/A2A
+                clients only, and prefer server-managed customer accounts
+                whose passwords are scoped to the agent (e.g. dedicated
+                "agent buyer" accounts with order limits configured in the
+                shop admin) over a customer's primary credentials.
+
+                ## Output
+
+                ```json
+                {"contextToken": "...", "loggedIn": true}
+                ```
+
+                MD,
+            ),
+            new Skill(
+                id: self::ID_CUSTOMER_LOGOUT,
+                name: 'Customer logout',
+                description: 'Log out the customer bound to contextToken. The token itself is invalidated.',
+                tags: ['account', 'auth'],
+                inputSchema: [
+                    'type' => 'object',
+                    'required' => ['contextToken'],
+                    'properties' => [
+                        'contextToken' => [
+                            'type' => 'string',
+                            'minLength' => 4,
+                        ],
+                    ],
+                    'additionalProperties' => false,
+                ],
+                body: <<<'MD'
+                # Customer logout
+
+                Invalidate the cart session and drop the customer
+                authentication. After this call, the contextToken should be
+                discarded; mint a fresh one via create-context for a new
+                anonymous session.
+
+                ## Output
+
+                ```json
+                {"loggedOut": true}
+                ```
+
+                MD,
+            ),
+            new Skill(
+                id: self::ID_PLACE_ORDER,
+                name: 'Place order',
+                description: 'Convert the cart owned by an authenticated contextToken into an order. Returns the created order summary.',
+                tags: ['checkout', 'orders'],
+                inputSchema: [
+                    'type' => 'object',
+                    'required' => ['contextToken'],
+                    'properties' => [
+                        'contextToken' => [
+                            'type' => 'string',
+                            'description' => 'Token of an authenticated cart session (call customer-login first).',
+                            'minLength' => 4,
+                        ],
+                        'tos' => [
+                            'type' => 'boolean',
+                            'description' => 'Confirm the customer accepts the terms of service. Defaults to true.',
+                            'default' => true,
+                        ],
+                    ],
+                    'additionalProperties' => false,
+                ],
+                body: <<<'MD'
+                # Place order
+
+                Convert the cart into an order.
+
+                ## Preconditions
+
+                1. `customer-login` ran successfully against the same
+                   `contextToken`, OR Shopware was configured to allow
+                   guest checkout and a guest registration was completed.
+                2. The cart has at least one line item (use `manage-cart`).
+                3. The sales channel has a default payment + shipping
+                   method configured.
+
+                ## Output
+
+                ```json
+                {
+                  "orderId": "...",
+                  "orderNumber": "10042",
+                  "amountTotal": 99.95,
+                  "stateMachineState": "open",
+                  "deepLinkCode": "..."
+                }
+                ```
+
+                ## Payment
+
+                After the order exists, follow up with
+                `POST /store-api/handle-payment` (out-of-skill) to drive
+                the configured payment handler. Payments are intentionally
+                not part of this skill — the auth/3DS/redirect dance is
+                better handled by a specialised payment surface.
 
                 MD,
             ),

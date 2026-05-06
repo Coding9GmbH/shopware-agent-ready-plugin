@@ -8,14 +8,37 @@ use PHPUnit\Framework\TestCase;
 
 class SkillRegistryTest extends TestCase
 {
-    public function testRegistryExposesFiveCanonicalSkills(): void
+    public function testRegistryExposesAllCanonicalSkills(): void
     {
         $ids = array_keys((new SkillRegistry())->all());
 
         self::assertSame(
-            ['search-products', 'get-product', 'create-context', 'get-cart', 'manage-cart'],
+            [
+                'search-products',
+                'get-product',
+                'create-context',
+                'get-cart',
+                'manage-cart',
+                'customer-login',
+                'customer-logout',
+                'place-order',
+            ],
             $ids
         );
+    }
+
+    public function testCustomerLoginRequiresCredentials(): void
+    {
+        $skill = (new SkillRegistry())->get('customer-login');
+        $this->expectException(SkillInputException::class);
+        $skill->validate(['contextToken' => 'tok-x']);
+    }
+
+    public function testPlaceOrderRequiresContextToken(): void
+    {
+        $skill = (new SkillRegistry())->get('place-order');
+        $this->expectException(SkillInputException::class);
+        $skill->validate([]);
     }
 
     public function testMcpToolListShape(): void

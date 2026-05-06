@@ -51,8 +51,98 @@ class SkillExecutor
             SkillRegistry::ID_CREATE_CONTEXT => $this->createContext($accessKey),
             SkillRegistry::ID_GET_CART => $this->getCart($args, $accessKey),
             SkillRegistry::ID_MANAGE_CART => $this->manageCart($args, $accessKey),
+            SkillRegistry::ID_CUSTOMER_LOGIN => $this->customerLogin($args, $accessKey),
+            SkillRegistry::ID_CUSTOMER_LOGOUT => $this->customerLogout($args, $accessKey),
+            SkillRegistry::ID_PLACE_ORDER => $this->placeOrder($args, $accessKey),
             default => SkillResult::error('unknown_skill', 'no executor for skill: ' . $skill->id, 501),
         };
+    }
+
+    /**
+     * @param array<string, mixed> $args
+     */
+    private function customerLogin(array $args, string $accessKey): SkillResult
+    {
+        $token = (string) $args['contextToken'];
+        $response = $this->storeApi->call(
+            'POST',
+            '/store-api/account/login',
+            [
+                'username' => (string) $args['username'],
+                'password' => (string) $args['password'],
+            ],
+            $accessKey,
+            $token,
+        );
+
+        if (!$response->isSuccess()) {
+            return $this->errorFromStoreApi($response);
+        }
+
+        $body = $response->decode() ?? [];
+        // Shopware returns the (possibly rotated) token in the response
+        // body and/or the sw-context-token header. Prefer the header.
+        $newToken = $response->contextToken
+            ?? (isset($body['contextToken']) && is_string($body['contextToken']) ? $body['contextToken'] : $token);
+
+        return SkillResult::success([
+            'contextToken' => $newToken,
+            'loggedIn' => true,
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $args
+     */
+    private function customerLogout(array $args, string $accessKey): SkillResult
+    {
+        $response = $this->storeApi->call(
+            'POST',
+            '/store-api/account/logout',
+            [],
+            $accessKey,
+            (string) $args['contextToken'],
+        );
+
+        // Shopware returns 204 on success; treat any 2xx as logged out.
+        if (!$response->isSuccess()) {
+            return $this->errorFromStoreApi($response);
+        }
+
+        return SkillResult::success(['loggedOut' => true]);
+    }
+
+    /**
+     * @param array<string, mixed> $args
+     */
+    private function placeOrder(array $args, string $accessKey): SkillResult
+    {
+        $body = ['tos' => $args['tos'] ?? true];
+
+        $response = $this->storeApi->call(
+            'POST',
+            '/store-api/checkout/order',
+            $body,
+            $accessKey,
+            (string) $args['contextToken'],
+        );
+
+        if (!$response->isSuccess()) {
+            return $this->errorFromStoreApi($response);
+        }
+
+        $payload = $response->decode() ?? [];
+        $order = isset($payload['order']) && is_array($payload['order']) ? $payload['order'] : $payload;
+
+        return SkillResult::success(array_filter([
+            'orderId' => $order['id'] ?? null,
+            'orderNumber' => $order['orderNumber'] ?? null,
+            'amountTotal' => $order['amountTotal'] ?? $order['price']['totalPrice'] ?? null,
+            'currency' => $order['currency']['isoCode'] ?? null,
+            'stateMachineState' => $order['stateMachineState']['technicalName']
+                ?? (is_string($order['stateMachineState'] ?? null) ? $order['stateMachineState'] : null),
+            'deepLinkCode' => $order['deepLinkCode'] ?? null,
+        ], static fn ($v) => $v !== null && $v !== ''));
     }
 
     /**
