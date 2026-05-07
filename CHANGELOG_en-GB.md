@@ -1,3 +1,15 @@
+# 0.1.3
+
+api-catalog: stop advertising endpoints that 404 on Shopware 6.7.
+
+- The `/api` linkset entry no longer carries `service-doc`. Shopware 6.7
+  no longer ships a HTML Swagger UI under `/api/_info/swagger.html`;
+  hinting it caused crawlers and validators to follow a 404. The
+  machine-readable OpenAPI document under `service-desc` is unchanged.
+- The `/store-api` linkset entry no longer carries `status`.
+  `/store-api/_info/health-check` does not exist on Shopware; the
+  Admin-API `status` link still does.
+
 # 0.1.2
 
 robots.txt and service-doc spec fixes.

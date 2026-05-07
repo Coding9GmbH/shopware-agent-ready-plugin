@@ -39,6 +39,10 @@ class WellKnownController extends AbstractController
 
         $base = $this->absoluteBase($request);
 
+        // Only advertise endpoints that actually exist on a stock Shopware 6.7
+        // installation. The Store-API has no health-check route, and the Admin
+        // API no longer ships a HTML Swagger UI under /api/_info/swagger.html
+        // — for those we drop the rel rather than emit a 404 hint.
         $linkset = [
             [
                 'anchor' => $base . '/store-api',
@@ -48,17 +52,11 @@ class WellKnownController extends AbstractController
                 'service-doc' => [
                     ['href' => 'https://shopware.stoplight.io/docs/store-api'],
                 ],
-                'status' => [
-                    ['href' => $base . '/store-api/_info/health-check'],
-                ],
             ],
             [
                 'anchor' => $base . '/api',
                 'service-desc' => [
                     ['href' => $base . '/api/_info/openapi3.json'],
-                ],
-                'service-doc' => [
-                    ['href' => $base . '/api/_info/swagger.html'],
                 ],
                 'status' => [
                     ['href' => $base . '/api/_info/health-check'],

@@ -28,9 +28,28 @@ class WellKnownControllerTest extends TestCase
 
         foreach ($payload['linkset'] as $entry) {
             self::assertArrayHasKey('service-desc', $entry);
-            self::assertArrayHasKey('service-doc', $entry);
-            self::assertArrayHasKey('status', $entry);
         }
+
+        $byAnchor = [];
+        foreach ($payload['linkset'] as $entry) {
+            $byAnchor[$entry['anchor']] = $entry;
+        }
+
+        // Store-API: external Stoplight docs, no on-server health-check.
+        self::assertArrayHasKey('service-doc', $byAnchor['https://shop.example/store-api']);
+        self::assertArrayNotHasKey('status', $byAnchor['https://shop.example/store-api']);
+
+        // Admin API: openapi3.json + health-check exist on Shopware 6.7;
+        // swagger.html does not, so service-doc is intentionally omitted.
+        self::assertSame(
+            'https://shop.example/api/_info/openapi3.json',
+            $byAnchor['https://shop.example/api']['service-desc'][0]['href']
+        );
+        self::assertSame(
+            'https://shop.example/api/_info/health-check',
+            $byAnchor['https://shop.example/api']['status'][0]['href']
+        );
+        self::assertArrayNotHasKey('service-doc', $byAnchor['https://shop.example/api']);
     }
 
     public function testApiCatalogReturns404WhenDisabled(): void
