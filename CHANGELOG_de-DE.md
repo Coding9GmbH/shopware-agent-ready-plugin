@@ -1,3 +1,27 @@
+# 0.1.4
+
+Warenkorb- und Kunden-State überleben jetzt zwischen MCP-/A2A-Skill-Calls.
+
+Bisher wurden Skill-Aufrufe als Symfony-Sub-Requests
+(`HttpKernelInterface::SUB_REQUEST`) ausgeführt. Dieser Pfad
+überspringt Teile des `kernel.response`- / `kernel.terminate`-Lifecycles
+— darunter den Cart-Persister — sodass bei jedem Folgeaufruf ein
+frischer anonymer Cart aus der DB geladen wurde. Mehrstufige Flows
+wie `create-context` → `manage-cart add` → `customer-login` →
+`place-order` konnten dadurch nicht zu Ende laufen: `place-order`
+sah immer einen leeren Warenkorb.
+
+`HttpStoreApiClient` ersetzt den Sub-Request-Pfad durch echte
+HTTP-Loopback-Requests gegen `$request->getSchemeAndHttpHost()
+. /store-api/...`. Damit läuft jeder Skill-Call durch denselben
+Stack wie ein Browser-Aufruf — Warenkorb, Kunden-Session und
+Rate-Limits bleiben zwischen Calls erhalten.
+
+Der bisherige Sub-Request-Client bleibt als `KernelStoreApiClient`
+im Repo erhalten, falls in einer Deployment-Umgebung kein
+Self-Loopback möglich ist. Er kann aber keinen Cart-State
+persistieren und ist nicht mehr die Default-Bindung.
+
 # 0.1.3
 
 api-catalog: keine Endpunkte mehr beworben, die unter Shopware 6.7

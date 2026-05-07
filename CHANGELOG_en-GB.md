@@ -1,3 +1,26 @@
+# 0.1.4
+
+Cart and customer state now persist across MCP / A2A skill calls.
+
+The previous Store-API binding dispatched skill calls as Symfony
+sub-requests (`HttpKernelInterface::SUB_REQUEST`). That path skipped
+parts of Shopware's `kernel.response` / `kernel.terminate` lifecycle —
+including the cart persister — so the cart was rebuilt as a fresh
+anonymous one on every call. Multi-step flows like `create-context` →
+`manage-cart add` → `customer-login` → `place-order` could not
+complete: every subsequent call saw an empty cart.
+
+`HttpStoreApiClient` replaces the sub-request path with a real HTTP
+loopback to `$request->getSchemeAndHttpHost() . /store-api/...`. The
+request goes through Shopware's full stack the same way a browser
+hit does, so cart, customer session and rate-limit state survive
+between skill calls.
+
+The kernel sub-request implementation is kept as
+`KernelStoreApiClient` for environments where outbound self-loopback
+is impossible — but it cannot persist cart state and is no longer the
+default binding.
+
 # 0.1.3
 
 api-catalog: stop advertising endpoints that 404 on Shopware 6.7.

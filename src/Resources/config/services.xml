@@ -24,7 +24,14 @@
         <service id="Coding9\AgentReady\StoreApi\KernelStoreApiClient">
             <argument type="service" id="http_kernel"/>
         </service>
-        <service id="Coding9\AgentReady\StoreApi\StoreApiClient" alias="Coding9\AgentReady\StoreApi\KernelStoreApiClient"/>
+        <service id="Coding9\AgentReady\StoreApi\HttpStoreApiClient">
+            <argument type="service" id="Symfony\Contracts\HttpClient\HttpClientInterface"/>
+            <argument type="service" id="request_stack"/>
+        </service>
+        <!-- Default to the real-HTTP client. The kernel sub-request client
+             is kept around for environments where outbound self-loopback
+             is impossible, but it cannot persist cart state across calls. -->
+        <service id="Coding9\AgentReady\StoreApi\StoreApiClient" alias="Coding9\AgentReady\StoreApi\HttpStoreApiClient"/>
 
         <service id="Coding9\AgentReady\StoreApi\RepositorySalesChannelKeyResolver">
             <argument type="service" id="sales_channel.repository"/>
