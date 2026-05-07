@@ -79,7 +79,7 @@ class HttpStoreApiClient implements StoreApiClient
 
         $token = null;
         foreach ($rawHeaders as $name => $values) {
-            if (strtolower($name) === 'sw-context-token' && isset($values[0]) && is_string($values[0])) {
+            if (strtolower($name) === 'sw-context-token' && isset($values[0])) {
                 $token = $values[0];
                 break;
             }
