@@ -1,3 +1,18 @@
+# 0.1.2
+
+Spec-Fixes für robots.txt und Service-Doc.
+
+- `/.well-known/api-catalog` verweist jetzt auf ein echtes, abrufbares
+  Service-Doc (das OpenAPI-Dokument der Store-API) statt auf einen
+  Platzhalter.
+- Die Content-Signal-Direktiven des Plugins werden zusätzlich in die
+  von Shopware-Core ausgelieferte `robots.txt` injiziert, damit sie auch
+  dann erhalten bleiben, wenn die Storefront robots.txt direkt
+  ausliefert.
+- Whitelist für cross-scope Sub-Requests, damit die Agent-Runtime
+  Store-API-Endpunkte unter `_routeScope: storefront` ohne
+  Scope-Verletzung aufrufen kann.
+
 # 0.1.0
 
 Erstes produktionsreifes Release. Das Plugin geht von „Discovery-Showcase"

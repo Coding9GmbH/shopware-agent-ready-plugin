@@ -1,3 +1,16 @@
+# 0.1.2
+
+robots.txt and service-doc spec fixes.
+
+- `/.well-known/api-catalog` now advertises a real, fetchable service-doc
+  (the OpenAPI document for the Store-API) instead of a placeholder URL.
+- The plugin's Content-Signal directives are now also injected into
+  Shopware's core `robots.txt` response (not only the plugin-served one),
+  so they survive when the storefront serves robots.txt directly.
+- Adds a cross-scope sub-request whitelist so the agent runtime can call
+  Store-API endpoints under `_routeScope: storefront` without scope
+  violations.
+
 # 0.1.0
 
 First production-ready release. The plugin moves from "discovery-only
